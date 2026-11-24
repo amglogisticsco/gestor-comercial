@@ -17,7 +17,8 @@
                     ("Contacto", c.cliente.contacto_nombre), ("Moneda", c.moneda),
                     ("Dirección", c.cliente.direccion), ("Ciudad / País", [c.cliente.ciudad, c.cliente.pais]|select|join(' / ')),
                     ("Correo", c.cliente.email), ("Ejecutivo", c.ejecutivo),
-                    ("Teléfono", c.cliente.telefono), ("Condición", c.condicion_pago)] %}
+                    ("Celular", c.cliente.telefono), ("Condición", c.condicion_pago),
+                    ("Tel. empresa", c.cliente.telefono_empresa)] %}
 {{ ficha(generales|selectattr(1)|list) }}
 
 {% if c.datos_servicio %}

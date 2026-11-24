@@ -57,7 +57,8 @@
         <dt>Nombre</dt><dd>{{ cliente.contacto_nombre or '—' }}{% if cliente.cargo %}<div class="small muted">{{ cliente.cargo }}</div>{% endif %}</dd>
         <dt>Correo</dt><dd>{% if cliente.email %}<a href="mailto:{{ cliente.email }}">{{ cliente.email }}</a>{% else %}—{% endif %}</dd>
         {% if cliente.email_cc %}<dt>En copia</dt><dd>{{ cliente.email_cc }}</dd>{% endif %}
-        <dt>Teléfono</dt><dd>{{ cliente.telefono or '—' }}</dd>
+        <dt>Celular / WhatsApp</dt><dd>{{ cliente.telefono or '—' }}</dd>
+        <dt>Tel. empresa</dt><dd>{{ cliente.telefono_empresa or '—' }}</dd>
         <dt>Dirección</dt><dd>{{ cliente.direccion or '—' }}{% if cliente.ciudad %}<div class="small muted">{{ cliente.ciudad }}, {{ cliente.pais }}</div>{% endif %}</dd>
         <dt>Cumpleaños</dt><dd>{% if cliente.fecha_nacimiento %}{{ cliente.fecha_nacimiento|dia_mes }}
           {% set d = cliente.dias_para_cumple() %}<div class="small muted">{% if d == 0 %}¡Es hoy!{% else %}Faltan {{ d }} días{% endif %}</div>{% else %}—{% endif %}</dd>

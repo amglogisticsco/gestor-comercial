@@ -93,6 +93,7 @@ def importar(archivo, incluir_cotizaciones=True):
             cliente.nit = nit or cliente.nit
             cliente.contacto_nombre = _texto(fila.get("contacto")).title() or cliente.contacto_nombre
             cliente.telefono = _texto(fila.get("telefono")) or cliente.telefono
+            cliente.telefono_empresa = _texto(fila.get("telefono empresa")) or cliente.telefono_empresa
             cliente.email = _texto(fila.get("correo")).lower() or cliente.email
             cliente.ciudad = _texto(fila.get("ciudad")) or cliente.ciudad
             cliente.pais = _texto(fila.get("pais")) or cliente.pais or "Colombia"

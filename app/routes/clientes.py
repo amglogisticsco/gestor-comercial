@@ -10,7 +10,7 @@ from . import a_fecha, obtener
 
 bp = Blueprint("clientes", __name__, url_prefix="/clientes")
 
-CAMPOS = ["razon_social", "nit", "contacto_nombre", "cargo", "email", "email_cc", "telefono",
+CAMPOS = ["razon_social", "nit", "telefono_empresa", "contacto_nombre", "cargo", "email", "email_cc", "telefono",
           "direccion", "ciudad", "pais", "notas"]
 
 

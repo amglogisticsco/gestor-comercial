@@ -20,7 +20,7 @@
   </div>
   {% if clientes %}
   <div class="tabla-envoltura"><table class="tabla">
-    <thead><tr><th>Cliente</th><th>Contacto</th><th>Correo</th><th>Teléfono</th><th>Ciudad</th></tr></thead>
+    <thead><tr><th>Cliente</th><th>Contacto</th><th>Correo</th><th>Teléfonos</th><th>Ciudad</th></tr></thead>
     <tbody>
     {% for c in clientes %}
       <tr>
@@ -28,7 +28,7 @@
           <div><a class="principal-celda" href="{{ url_for('clientes.ver', ident=c.id) }}">{{ c.razon_social }}</a>
           <div class="small muted">{{ c.codigo }}{% if c.nit %} · NIT {{ c.nit }}{% endif %}{% if not c.activo %} · Inactivo{% endif %}</div></div></div></td>
         <td>{{ c.contacto_nombre or '—' }}{% if c.cargo %}<div class="small muted">{{ c.cargo }}</div>{% endif %}</td>
-        <td>{{ c.email or '—' }}</td><td>{{ c.telefono or '—' }}</td><td>{{ c.ciudad or '—' }}</td>
+        <td>{{ c.email or '—' }}</td><td class="small">{% if c.telefono %}{{ c.telefono }}{% endif %}{% if c.telefono_empresa %}<div class="muted">Empresa: {{ c.telefono_empresa }}</div>{% endif %}{% if not c.telefono and not c.telefono_empresa %}—{% endif %}</td><td>{{ c.ciudad or '—' }}</td>
       </tr>
     {% endfor %}
     </tbody></table></div>

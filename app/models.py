@@ -107,7 +107,8 @@ class Cliente(db.Model):
     cargo = db.Column(db.String(80), default="")
     email = db.Column(db.String(160), default="")
     email_cc = db.Column(db.String(300), default="")
-    telefono = db.Column(db.String(60), default="")
+    telefono = db.Column(db.String(60), default="")  # celular / WhatsApp del contacto
+    telefono_empresa = db.Column(db.String(60), default="")
     direccion = db.Column(db.String(200), default="")
     ciudad = db.Column(db.String(80), default="")
     pais = db.Column(db.String(80), default="Colombia")

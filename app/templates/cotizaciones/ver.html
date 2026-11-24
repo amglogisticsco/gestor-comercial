@@ -23,13 +23,13 @@
       <div class="tabla-envoltura"><table class="tabla">
         <thead><tr><th>Descripción</th><th class="der">Cant.</th><th>Unidad</th><th class="der">Precio</th><th class="der">Total</th></tr></thead>
         <tbody>{% for i in c.items %}
-          <tr><td>{{ i.descripcion }}{% if not i.aplica_iva %}<div class="small muted">Sin IVA</div>{% endif %}</td>
+          <tr><td>{{ i.descripcion }}{% if i.observacion or i.aplica_iva %}<div class="small muted">{{ [i.observacion, 'Gravado IVA' if i.aplica_iva]|select|join(' · ') }}</div>{% endif %}</td>
             <td class="der num">{{ i.cantidad|numero }}</td><td>{{ i.unidad }}</td>
             <td class="der num">{{ i.precio|moneda(c.moneda) }}</td><td class="der num">{{ i.total|moneda(c.moneda) }}</td></tr>
         {% endfor %}</tbody></table></div>
       <div class="totales num">
         <div><span class="muted">Subtotal</span><span>{{ c.subtotal|moneda(c.moneda) }}</span></div>
-        <div><span class="muted">IVA {{ c.iva_pct|numero }}%</span><span>{{ c.iva|moneda(c.moneda) }}</span></div>
+        <div><span class="muted">Impuestos</span><span>{{ c.iva|moneda(c.moneda) }}</span></div>
         <div class="total"><span>Total</span><span>{{ c.total|moneda(c.moneda) }}</span></div>
       </div>
     </div>
@@ -50,27 +50,21 @@
           <button class="btn" type="submit">Actualizar</button>
         </form>
         {% if c.estado == 'aprobada' %}
-        <a class="btn btn-exito" style="margin-top:12px;width:100%;justify-content:center" href="{{ url_for('anticipos.nuevo', cotizacion_id=c.id) }}">{{ icono('anticipo') }} Solicitar anticipo</a>
+        <a class="btn btn-exito" style="margin-top:12px;width:100%;justify-content:center" href="{{ url_for('anticipos.nuevo', cotizacion_id=c.id) }}">{{ icono('anticipo') }} Crear solicitud de fondos</a>
         {% endif %}
       </div>
     </div>
 
-    {% if c.tiene_operacion %}
-    <div class="tarjeta"><div class="tarjeta-cab"><h2>Operación</h2></div><div class="tarjeta-cuerpo"><dl class="datos">
-      {% if c.tipo_operacion %}<dt>Tipo</dt><dd>{{ c.tipo_operacion }}</dd>{% endif %}
-      {% if c.modalidad %}<dt>Modalidad</dt><dd>{{ c.modalidad }}</dd>{% endif %}
-      {% if c.incoterm %}<dt>Incoterm</dt><dd>{{ c.incoterm }}</dd>{% endif %}
-      {% if c.origen %}<dt>Origen</dt><dd>{{ c.origen }}</dd>{% endif %}
-      {% if c.destino %}<dt>Destino</dt><dd>{{ c.destino }}</dd>{% endif %}
-      {% if c.mercancia %}<dt>Mercancía</dt><dd>{{ c.mercancia }}</dd>{% endif %}
-      {% if c.bultos %}<dt>Bultos</dt><dd>{{ c.bultos }}</dd>{% endif %}
-      {% if c.peso_kg %}<dt>Peso</dt><dd>{{ c.peso_kg }} kg</dd>{% endif %}
-      {% if c.volumen_m3 %}<dt>Volumen</dt><dd>{{ c.volumen_m3 }} m³</dd>{% endif %}
+    <div class="tarjeta"><div class="tarjeta-cab"><h2>Datos generales</h2></div><div class="tarjeta-cuerpo"><dl class="datos">
+      {% if c.asunto %}<dt>Operación</dt><dd>{{ c.asunto }}</dd>{% endif %}
+      {% if c.ejecutivo %}<dt>Ejecutivo</dt><dd>{{ c.ejecutivo }}</dd>{% endif %}
+      {% if c.condicion_pago %}<dt>Condición</dt><dd>{{ c.condicion_pago }}</dd>{% endif %}
+      <dt>Moneda</dt><dd>{{ c.moneda }}</dd>
+      {% for k, v in c.datos_servicio %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}
     </dl></div></div>
-    {% endif %}
 
     {% if c.anticipos %}
-    <div class="tarjeta"><div class="tarjeta-cab"><h2>Anticipos</h2></div>
+    <div class="tarjeta"><div class="tarjeta-cab"><h2>Solicitudes de fondos</h2></div>
       <ul class="lista-simple">{% for a in c.anticipos %}
         <li><a href="{{ url_for('anticipos.ver', ident=a.id) }}" class="principal-celda">{{ a.numero }}</a><span class="num">{{ a.monto|moneda(a.moneda) }}</span>{{ badge(a.estado, ESTADOS) }}</li>
       {% endfor %}</ul></div>

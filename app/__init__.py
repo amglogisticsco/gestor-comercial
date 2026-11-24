@@ -12,7 +12,7 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 login_manager = LoginManager()
 
-ENDPOINTS_ABIERTOS = {"auth.login", "auth.setup", "static"}
+ENDPOINTS_ABIERTOS = {"auth.login", "auth.setup", "static", "configuracion.logo"}
 
 
 def create_app(config_extra=None):
@@ -49,10 +49,10 @@ def create_app(config_extra=None):
     login_manager.init_app(app)
 
     from . import filtros, models  # noqa: F401
-    from .routes import anticipos, auth, clientes, configuracion, correos, cotizaciones, panel, servicios
+    from .routes import anticipos, auth, clientes, configuracion, correos, cotizaciones, panel, servicios, usuarios
 
     filtros.registrar(app)
-    for modulo in (auth, panel, clientes, servicios, cotizaciones, anticipos, correos, configuracion):
+    for modulo in (auth, panel, clientes, servicios, cotizaciones, anticipos, correos, configuracion, usuarios):
         app.register_blueprint(modulo.bp)
 
     @app.before_request
@@ -84,6 +84,7 @@ def create_app(config_extra=None):
 
     with app.app_context():
         db.create_all()
+        models.asegurar_columnas()
         models.sembrar_datos()
 
     if app.config["PROGRAMADOR"]:

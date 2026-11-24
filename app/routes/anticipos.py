@@ -3,12 +3,17 @@ from datetime import date, timedelta
 from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
 
 from .. import db
-from ..models import ESTADOS_ANTICIPO, MONEDAS, Anticipo, Cliente, Cotizacion, Empresa, siguiente_numero
+from ..models import (ESTADOS_ANTICIPO, GRUPOS_ANTICIPO, MODALIDADES, TIPOS_OPERACION, Anticipo, Cliente,
+                      Cotizacion, ItemAnticipo, Servicio, siguiente_numero)
 from ..services import correo as servicio_correo
 from ..services import pdf
 from . import a_fecha, a_numero, obtener
 
 bp = Blueprint("anticipos", __name__, url_prefix="/anticipos")
+
+CAMPOS_TEXTO = ["tipo_operacion", "modalidad", "do_numero", "aduana", "origen", "destino", "tipo_mercancia",
+                "doc_transporte", "partida_arancelaria", "concepto", "notas"]
+CAMPOS_NUMERO = ["trm", "fob", "flete", "seguro", "otros_cif", "arancel_pct", "iva_tributo_pct"]
 
 
 @bp.route("/")
@@ -23,9 +28,10 @@ def lista():
 
 def _contexto(a):
     return {
-        "a": a, "monedas": MONEDAS,
+        "a": a, "grupos": GRUPOS_ANTICIPO, "tipos": TIPOS_OPERACION, "modalidades": MODALIDADES,
         "clientes": Cliente.query.filter_by(activo=True).order_by(Cliente.razon_social).all(),
         "cotizaciones": Cotizacion.query.filter(Cotizacion.estado != "rechazada").order_by(Cotizacion.id.desc()).all(),
+        "servicios": Servicio.query.filter_by(activo=True).order_by(Servicio.grupo, Servicio.nombre).all(),
     }
 
 
@@ -39,39 +45,61 @@ def _guardar(a):
         return False
     a.fecha = a_fecha(request.form.get("fecha")) or date.today()
     a.fecha_limite = a_fecha(request.form.get("fecha_limite"))
-    a.moneda = cot.moneda if cot else request.form.get("moneda", "COP")
-    a.porcentaje = a_numero(request.form.get("porcentaje"), None)
-    a.monto = a_numero(request.form.get("monto"))
-    if cot and a.porcentaje and not request.form.get("monto"):
-        a.monto = round(cot.total * a.porcentaje / 100, 2)
-    a.concepto = request.form.get("concepto", "").strip()
-    a.notas = request.form.get("notas", "").strip()
+    a.moneda = "COP"
+    for campo in CAMPOS_TEXTO:
+        setattr(a, campo, request.form.get(campo, "").strip())
+    for campo in CAMPOS_NUMERO:
+        setattr(a, campo, a_numero(request.form.get(campo), 0))
+
+    grupos = request.form.getlist("item_grupo")
+    descripciones = request.form.getlist("item_descripcion")
+    valores = request.form.getlist("item_valor")
+    a.items = [
+        ItemAnticipo(orden=i, grupo=grupos[i] if i < len(grupos) else GRUPOS_ANTICIPO[-1], descripcion=d.strip(),
+                     valor=a_numero(valores[i] if i < len(valores) else 0))
+        for i, d in enumerate(descripciones) if d.strip()
+    ]
+    a.monto = a.total
     if a.monto <= 0:
-        flash("El monto del anticipo debe ser mayor que cero.", "error")
+        flash("La solicitud no tiene valor: agrega conceptos o los datos para liquidar tributos.", "error")
         return False
     return True
 
 
+def _desde_cotizacion(a, cot):
+    """Prellena la solicitud con los datos y conceptos de una cotización."""
+    a.cotizacion_id, a.cliente_id = cot.id, cot.cliente_id
+    a.tipo_operacion = cot.tipo_operacion or "Importación"
+    a.modalidad, a.origen, a.destino = cot.modalidad, cot.origen, cot.destino
+    a.tipo_mercancia = cot.mercancia
+    a.concepto = f"Solicitud de fondos – cotización {cot.numero}"
+    grupos = {s.id: s.grupo for s in Servicio.query.all()}
+    a.items = [
+        ItemAnticipo(orden=n, grupo=grupos.get(i.servicio_id, GRUPOS_ANTICIPO[-1]), descripcion=i.descripcion,
+                     valor=i.total + i.impuesto(cot.iva_pct) if cot.moneda == "COP" else 0)
+        for n, i in enumerate(cot.items)
+    ]
+
+
 @bp.route("/nuevo", methods=["GET", "POST"])
 def nuevo():
-    empresa = Empresa.actual()
-    cot = db.session.get(Cotizacion, request.args.get("cotizacion_id", type=int) or 0)
-    a = Anticipo(fecha=date.today(), fecha_limite=date.today() + timedelta(days=5), moneda=empresa.moneda,
+    a = Anticipo(fecha=date.today(), fecha_limite=date.today() + timedelta(days=3), moneda="COP",
+                 tipo_operacion="Importación", iva_tributo_pct=19, arancel_pct=0,
                  cliente_id=request.args.get("cliente_id", type=int))
-    if cot:
-        a.cotizacion_id, a.cliente_id, a.moneda = cot.id, cot.cliente_id, cot.moneda
-        a.porcentaje = empresa.anticipo_pct
-        a.monto = round(cot.total * empresa.anticipo_pct / 100, 2)
-        a.concepto = f"Anticipo para inicio de operación – cotización {cot.numero}"
+    cot = db.session.get(Cotizacion, request.args.get("cotizacion_id", type=int) or 0)
+    aviso_usd = False
+    if cot and request.method == "GET":
+        _desde_cotizacion(a, cot)
+        aviso_usd = cot.moneda != "COP"
     if request.method == "POST":
         if _guardar(a):
-            a.numero = siguiente_numero(Anticipo, "ANT")
+            a.numero = siguiente_numero(Anticipo, "SF")
             db.session.add(a)
             db.session.commit()
-            flash(f"Solicitud {a.numero} creada.", "ok")
+            flash(f"Solicitud de fondos {a.numero} creada.", "ok")
             return redirect(url_for("anticipos.ver", ident=a.id))
         db.session.expunge_all()
-    return render_template("anticipos/form.html", **_contexto(a))
+    return render_template("anticipos/form.html", aviso_usd=aviso_usd, cot_origen=cot, **_contexto(a))
 
 
 @bp.route("/<int:ident>/editar", methods=["GET", "POST"])
@@ -83,7 +111,7 @@ def editar(ident):
             flash("Solicitud actualizada.", "ok")
             return redirect(url_for("anticipos.ver", ident=a.id))
         db.session.rollback()
-    return render_template("anticipos/form.html", **_contexto(a))
+    return render_template("anticipos/form.html", aviso_usd=False, cot_origen=None, **_contexto(a))
 
 
 @bp.route("/<int:ident>")

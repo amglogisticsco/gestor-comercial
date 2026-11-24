@@ -98,16 +98,25 @@ def test_flujo_completo(cliente_http):
     with c.app.app_context():
         assert db.session.get(Cotizacion, cot_id).estado == "enviada"
 
-    # Aprobada → anticipo del 50 %
+    # Aprobada → solicitud de fondos con tributos (como el Excel de AMG) y conceptos
     post(c, f"/cotizaciones/{cot_id}/estado", {"estado": "aprobada"}, desde=f"/cotizaciones/{cot_id}")
     r = post(c, f"/anticipos/nuevo?cotizacion_id={cot_id}", {
-        "cotizacion_id": cot_id, "porcentaje": "50", "monto": "", "fecha": hoy.isoformat(),
-        "fecha_limite": hoy.isoformat(), "concepto": "Anticipo", "notas": "",
+        "cotizacion_id": cot_id, "tipo_operacion": "Importación", "do_numero": "DO-123", "aduana": "Cartagena",
+        "fecha": hoy.isoformat(), "fecha_limite": hoy.isoformat(),
+        "trm": "3168,57", "fob": "21119,75", "flete": "305", "seguro": "80", "otros_cif": "337",
+        "arancel_pct": "0", "iva_tributo_pct": "19",
+        "item_grupo": ["Intermediación aduanera", "Gastos aerolínea / puerto", "Otros gastos"],
+        "item_descripcion": ["Agenciamiento marítimo", "Liberación", "Movimientos bancarios"],
+        "item_valor": ["850.000", "1.100.000", "65.000"],
     })
-    assert "ANT-" in r.get_data(as_text=True)
+    assert "SF-" in r.get_data(as_text=True)
     with c.app.app_context():
         ant = Anticipo.query.one()
-        assert ant.monto == 4_892_500
+        assert ant.cif == 21841.75
+        assert ant.base_gravable == round(21841.75 * 3168.57)
+        assert ant.iva_tributo == round(ant.base_gravable * 0.19)
+        assert ant.total == ant.iva_tributo + 2_015_000 == ant.monto
+        assert [g for g, _, _ in ant.grupos] == ["Intermediación aduanera", "Gastos aerolínea / puerto", "Otros gastos"]
         assert c.get(f"/anticipos/{ant.id}/pdf").data[:4] == b"%PDF"
 
     # Cumpleaños: el panel prepara un único borrador (no envía, auto-envío apagado)
@@ -122,7 +131,8 @@ def test_flujo_completo(cliente_http):
     # Todas las páginas cargan
     for url in ["/", "/clientes/", f"/clientes/{cid}", "/clientes/nuevo", "/clientes/importar", "/servicios/",
                 "/cotizaciones/", "/cotizaciones/nueva", f"/cotizaciones/{cot_id}/editar", "/anticipos/",
-                "/anticipos/nuevo", "/correos/", "/correos/?vista=enviados", f"/correos/{bid}", "/configuracion/"]:
+                "/anticipos/nuevo", f"/anticipos/nuevo?cotizacion_id={cot_id}", "/correos/", "/correos/?vista=enviados",
+                f"/correos/{bid}", "/configuracion/", "/usuarios/", "/usuarios/nuevo", "/cuenta"]:
         assert c.get(url).status_code == 200, url
 
 
@@ -130,3 +140,55 @@ def test_cumple_29_febrero():
     cliente = Cliente(razon_social="X", fecha_nacimiento=date(1992, 2, 29))
     assert cliente.cumple_en(2027) == date(2027, 2, 28)
     assert cliente.cumple_en(2028) == date(2028, 2, 29)
+
+
+def test_usuarios_y_permisos(cliente_http):
+    c = cliente_http
+    post(c, "/setup", {"empresa": "AMG", "nombre": "David Zambrano", "email": "admin@amg.test", "clave": "clave-segura"})
+    # El administrador crea un usuario
+    r = post(c, "/usuarios/nuevo", {"nombre": "Laura Ríos", "email": "laura@amg.test", "cargo": "Comercial",
+                                    "rol": "usuario", "activo": "1", "clave": "clave-laura"})
+    assert "Usuario guardado" in r.get_data(as_text=True)
+    # No se puede quitar el último administrador
+    with c.app.app_context():
+        from app.models import Usuario
+        admin_id = Usuario.query.filter_by(email="admin@amg.test").one().id
+        laura_id = Usuario.query.filter_by(email="laura@amg.test").one().id
+    r = post(c, f"/usuarios/{admin_id}", {"nombre": "David Zambrano", "email": "admin@amg.test", "rol": "usuario", "activo": "1"})
+    assert "al menos un administrador" in r.get_data(as_text=True)
+
+    # El usuario normal entra, pero no ve configuración ni usuarios
+    post(c, "/logout", {}, desde="/")
+    r = post(c, "/login", {"email": "laura@amg.test", "clave": "clave-laura"})
+    assert "Usuarios</a>" not in r.get_data(as_text=True)
+    assert c.get("/configuracion/").status_code == 403
+    assert c.get("/usuarios/").status_code == 403
+    assert c.get("/cotizaciones/nueva").status_code == 200
+    # Cambia su propia contraseña
+    r = post(c, "/cuenta", {"nombre": "Laura Ríos", "clave_actual": "clave-laura",
+                            "clave_nueva": "nueva-clave-1", "clave_confirmar": "nueva-clave-1"})
+    assert "Contraseña actualizada" in r.get_data(as_text=True)
+
+    # El admin la desactiva y ya no puede entrar
+    post(c, "/logout", {}, desde="/")
+    post(c, "/login", {"email": "admin@amg.test", "clave": "clave-segura"})
+    post(c, f"/usuarios/{laura_id}", {"nombre": "Laura Ríos", "email": "laura@amg.test", "rol": "usuario", "activo": "0"})
+    post(c, "/logout", {}, desde="/")
+    r = post(c, "/login", {"email": "laura@amg.test", "clave": "nueva-clave-1"})
+    assert "desactivado" in r.get_data(as_text=True)
+
+
+def test_migra_base_anterior(tmp_path):
+    """Una base creada con la versión anterior recibe las columnas nuevas sin perder datos."""
+    import sqlite3
+    ruta = tmp_path / "vieja.db"
+    con = sqlite3.connect(ruta)
+    con.execute("CREATE TABLE usuario (id INTEGER PRIMARY KEY, nombre VARCHAR(120) NOT NULL, email VARCHAR(160) NOT NULL UNIQUE, password_hash VARCHAR(255) NOT NULL)")
+    con.execute("INSERT INTO usuario (nombre, email, password_hash) VALUES ('Ana', 'ana@x.co', 'x')")
+    con.commit(); con.close()
+    app = create_app({"TESTING": True, "SECRET_KEY": "x", "PROGRAMADOR": False,
+                      "SQLALCHEMY_DATABASE_URI": f"sqlite:///{ruta}", "UPLOAD_DIR": str(tmp_path / "up")})
+    with app.app_context():
+        from app.models import Usuario
+        u = Usuario.query.one()
+        assert u.nombre == "Ana" and u.es_admin and u.activo

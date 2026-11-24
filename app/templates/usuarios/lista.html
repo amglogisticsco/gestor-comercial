@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, iniciales with context %}
+{% block titulo %}Usuarios{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div><h1>Usuarios</h1><p>Personas con acceso a la aplicación. Solo los administradores ven esta sección y la configuración.</p></div>
+  <a class="btn btn-primario" href="{{ url_for('usuarios.editar') }}">{{ icono('mas') }} Nuevo usuario</a>
+</div>
+<div class="tarjeta">
+  <div class="tabla-envoltura"><table class="tabla">
+    <thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+    <tbody>{% for u in usuarios %}
+      <tr>
+        <td><div class="fila-persona"><div class="avatar">{{ iniciales(u.nombre) }}</div>
+          <div><span class="principal-celda">{{ u.nombre }}</span>{% if u.id == current_user.id %} <span class="small muted">(tú)</span>{% endif %}
+          {% if u.cargo %}<div class="small muted">{{ u.cargo }}</div>{% endif %}</div></div></td>
+        <td>{{ u.email }}</td>
+        <td>{% if u.es_admin %}<span class="badge b-enviada">Administrador</span>{% else %}<span class="badge b-borrador">Usuario</span>{% endif %}</td>
+        <td>{% if u.activo %}<span class="badge b-aprobada">Activo</span>{% else %}<span class="badge b-rechazada">Desactivado</span>{% endif %}</td>
+        <td class="der"><a class="btn btn-sm" href="{{ url_for('usuarios.editar', ident=u.id) }}">Editar</a></td>
+      </tr>
+    {% endfor %}</tbody></table></div>
+</div>
+<div class="tarjeta"><div class="tarjeta-cuerpo small muted">
+  <strong style="color:var(--texto)">Permisos.</strong> El <strong>administrador</strong> gestiona usuarios, datos de la empresa, plantillas y correo, además de todo lo demás.
+  El <strong>usuario</strong> trabaja con clientes, cotizaciones, solicitudes de fondos y correos.
+</div></div>
+{% endblock %}

@@ -1,11 +1,11 @@
-{% set color = empresa.color or '#12304F' %}
+{% set color = empresa.color or '#373435' %}{% set acento = empresa.color_acento or '#ED3237' %}
 <!doctype html>
 <html lang="es">
 <body style="margin:0;padding:0;background:#F4F6F9;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F6F9;padding:24px 12px;">
   <tr><td align="center">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #E2E7EE;font-family:Helvetica,Arial,sans-serif;">
-      <tr><td style="background:{{ color }};padding:18px 28px;color:#ffffff;font-size:17px;font-weight:bold;">{{ empresa.nombre }}</td></tr>
+      <tr><td style="background:{{ color }};border-bottom:4px solid {{ acento }};padding:18px 28px;color:#ffffff;font-size:17px;font-weight:bold;">{{ empresa.nombre }}</td></tr>
       {% if correo.tipo == 'cumpleanos' %}
       <tr><td align="center" style="padding:30px 28px 0;font-size:40px;line-height:1;">🎉</td></tr>
       {% endif %}

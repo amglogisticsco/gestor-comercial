@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% from "_macros.html" import icono, badge with context %}
-{% block titulo %}Anticipos{% endblock %}
+{% block titulo %}Solicitudes de fondos{% endblock %}
 {% block contenido %}
 <div class="encabezado">
-  <div><h1>Solicitudes de anticipo</h1><p>Genéralas desde una cotización aprobada o de forma directa.</p></div>
+  <div><h1>Solicitudes de fondos</h1><p>Anticipos con liquidación de tributos y gastos de la operación.</p></div>
   <a class="btn btn-primario" href="{{ url_for('anticipos.nuevo') }}">{{ icono('mas') }} Nueva solicitud</a>
 </div>
 <div class="pestanas">
@@ -13,14 +13,14 @@
 <div class="tarjeta">
   {% if anticipos %}
   <div class="tabla-envoltura"><table class="tabla">
-    <thead><tr><th>Número</th><th>Cliente</th><th>Cotización</th><th>Fecha límite</th><th>Estado</th><th class="der">Monto</th></tr></thead>
+    <thead><tr><th>Número</th><th>Cliente</th><th>D.O. / Cotización</th><th>Fecha límite</th><th>Estado</th><th class="der">Monto</th></tr></thead>
     <tbody>{% for a in anticipos %}
       <tr><td><a class="principal-celda" href="{{ url_for('anticipos.ver', ident=a.id) }}">{{ a.numero }}</a></td>
         <td>{{ a.cliente.razon_social }}</td>
-        <td>{% if a.cotizacion %}<a href="{{ url_for('cotizaciones.ver', ident=a.cotizacion.id) }}">{{ a.cotizacion.numero }}</a>{% else %}—{% endif %}</td>
+        <td>{{ a.do_numero or '' }}{% if a.cotizacion %}<div class="small"><a href="{{ url_for('cotizaciones.ver', ident=a.cotizacion.id) }}">{{ a.cotizacion.numero }}</a></div>{% elif not a.do_numero %}—{% endif %}</td>
         <td>{% if a.vencido %}<span class="badge b-error">Vencido {{ a.fecha_limite|fecha }}</span>{% else %}{{ a.fecha_limite|fecha }}{% endif %}</td>
         <td>{{ badge(a.estado, ESTADOS) }}</td><td class="der num">{{ a.monto|moneda(a.moneda) }}</td></tr>
     {% endfor %}</tbody></table></div>
-  {% else %}<div class="vacio">No hay solicitudes de anticipo.</div>{% endif %}
+  {% else %}<div class="vacio">No hay solicitudes de fondos.</div>{% endif %}
 </div>
 {% endblock %}

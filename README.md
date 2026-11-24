@@ -1,6 +1,6 @@
-# Gestor Comercial
+# Gestor Comercial · AMG Logistics
 
-Aplicación web para gestionar clientes, cotizaciones, solicitudes de anticipo y correos, con saludos de cumpleaños automáticos. Está pensada para una empresa de logística y comercio exterior.
+Aplicación web para gestionar clientes, cotizaciones, solicitudes de fondos (anticipos) y correos, con saludos de cumpleaños automáticos. Los documentos siguen los formatos de AMG Logistics SAS.
 
 ![Panel](ejemplos/panel.png)
 
@@ -9,14 +9,15 @@ Aplicación web para gestionar clientes, cotizaciones, solicitudes de anticipo y
 | Módulo | Qué hace |
 |---|---|
 | **Clientes** | Base de datos con NIT, contacto, correos en copia, teléfono, dirección, notas y fecha de nacimiento (opcional). Se puede buscar, importar y exportar en CSV (Excel). |
-| **Servicios y tarifas** | Catálogo precargado: documentación de importación/exportación, agenciamiento aduanero, reconocimiento previo, etiquetado, alistamiento, almacenaje, transporte de carga y fletes internacionales. Cada servicio tiene unidad, tarifa e IVA. |
-| **Cotizaciones** | Numeración automática (`COT-2026-0001`), datos de la operación (tipo, modalidad, Incoterm, ruta, mercancía, peso y volumen), ítems del catálogo o libres, IVA por línea y PDF profesional. Estados: borrador, enviada, aprobada, rechazada y vencida. |
-| **Anticipos** | Se generan desde una cotización aprobada con el porcentaje sugerido. Incluyen PDF con los datos bancarios y control de pago. |
+| **Servicios y tarifas** | Catálogo precargado con los conceptos de la hoja "Base de Datos" de AMG (agenciamiento, proceso de aduana, liberación, fletes, manejos en puerto, handling, etc.). Cada concepto tiene unidad, tarifa, IVA (servicio propio o pago a terceros) y grupo para la solicitud de fondos. |
+| **Cotizaciones** | Formato "Cotización de servicios logísticos": numeración automática (`COT-2026-0001`), ejecutivo, condición de pago, datos del servicio (origen, destino, ruta, modalidad, Incoterm, tipo de carga, contenedor, naviera/aerolínea, tiempo de tránsito, días libres, peso, volumen, piezas), ítems con impuestos y observación, nota de tarifas, condiciones y bloque de aceptación. Estados: borrador, enviada, aprobada, rechazada y vencida. |
+| **Solicitud de fondos** | El anticipo con el formato de AMG (`SF-2026-0001`): D.O., aduana, documento de transporte, partida arancelaria, liquidación de tributos (FOB + flete + seguro + otros = CIF × TRM → arancel e IVA) y conceptos agrupados en intermediación aduanera, gastos aerolínea/puerto y otros gastos. Se puede crear desde una cotización. Incluye los datos bancarios y el control de pago. |
 | **Correos** | Borradores listos con el PDF adjunto. **Nada se envía sin tu revisión y confirmación.** Guarda el historial por cliente. |
 | **Cumpleaños** | Cada día a las 8:00 (hora de Bogotá) prepara el saludo de quien cumple años. Por defecto queda como borrador; el envío automático se activa en Configuración. |
+| **Usuarios** | El administrador crea usuarios, asigna el rol (administrador o usuario), restablece contraseñas y desactiva accesos. Cada persona edita sus datos y su contraseña en "Mi cuenta". Su nombre sale como ejecutivo y en la firma de los correos. |
 | **Panel** | Lo cotizado en el mes, cotizaciones aprobadas y en espera, anticipos por cobrar, correos pendientes y próximos cumpleaños. |
 
-Ejemplos de documentos: [cotización](ejemplos/cotizacion-ejemplo.pdf) · [anticipo](ejemplos/anticipo-ejemplo.pdf)
+Ejemplos de documentos: [cotización](ejemplos/cotizacion-ejemplo.pdf) · [solicitud de fondos](ejemplos/solicitud-fondos-ejemplo.pdf)
 
 ## Instalación
 
@@ -30,7 +31,9 @@ cp .env.example .env             # y completa los valores
 python run.py                    # abre http://localhost:5000
 ```
 
-La primera vez, la app te pide crear tu usuario. Después ve a **Configuración** y completa los datos de la empresa: logo, NIT, datos bancarios y firma.
+La primera vez, la app te pide crear tu usuario, que queda como **administrador**. La app ya trae el logo, la dirección, el teléfono, el correo, la cuenta bancaria y las condiciones de AMG. En **Configuración** solo falta completar el NIT. Luego crea los usuarios de tu equipo en **Usuarios**.
+
+Si actualizas desde una versión anterior, la base de datos se ajusta sola al arrancar, sin perder información.
 
 ## Configurar el correo corporativo
 

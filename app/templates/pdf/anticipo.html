@@ -1,52 +1,62 @@
 {% extends "pdf/_base.html" %}
+{% macro ficha(pares) -%}
+<table class="ficha">
+{% for fila in pares|batch(2) %}
+  <tr>{% for k, v in fila %}<td class="k">{{ k }}</td><td class="v">{{ v }}</td>{% endfor %}{% if fila|length == 1 %}<td class="k"></td><td class="v"></td>{% endif %}</tr>
+{% endfor %}
+</table>
+{%- endmacro %}
 {% block documento %}
-  <div class="tipo">SOLICITUD DE ANTICIPO</div>
-  <div class="numero">{{ a.numero }}</div>
-  <table>
-    <tr><td>Fecha</td><td>{{ a.fecha|fecha }}</td></tr>
-    {% if a.fecha_limite %}<tr><td>Fecha límite de pago</td><td>{{ a.fecha_limite|fecha }}</td></tr>{% endif %}
-    {% if a.cotizacion %}<tr><td>Cotización</td><td>{{ a.cotizacion.numero }}</td></tr>{% endif %}
-  </table>
+  <div class="tipo">Solicitud de fondos</div>
+  {% if a.tipo_operacion %}<div class="sub">{{ a.tipo_operacion }}{% if a.modalidad %} · {{ a.modalidad }}{% endif %}</div>{% endif %}
+  <div class="numero">N.º {{ a.numero }}</div>
 {% endblock %}
 {% block cuerpo %}
-<div class="bloques">
-  <div class="bloque">
-    <h4>Cliente</h4>
-    <div class="fuerte">{{ a.cliente.razon_social }}</div>
-    {% if a.cliente.nit %}<div>NIT {{ a.cliente.nit }}</div>{% endif %}
-    {% if a.cliente.contacto_nombre %}<div>Atn.: {{ a.cliente.contacto_nombre }}</div>{% endif %}
-    <div>{{ [a.cliente.email, a.cliente.telefono]|select|join(' · ') }}</div>
-  </div>
-  {% if a.cotizacion and a.cotizacion.tiene_operacion %}
-  <div class="bloque">
-    <h4>Operación</h4>
-    <table>
-      {% if a.cotizacion.tipo_operacion %}<tr><td>Tipo</td><td>{{ [a.cotizacion.tipo_operacion, a.cotizacion.modalidad]|select|join(' · ') }}</td></tr>{% endif %}
-      {% if a.cotizacion.origen or a.cotizacion.destino %}<tr><td>Ruta</td><td>{{ a.cotizacion.origen or '—' }} → {{ a.cotizacion.destino or '—' }}</td></tr>{% endif %}
-      {% if a.cotizacion.mercancia %}<tr><td>Mercancía</td><td>{{ a.cotizacion.mercancia }}</td></tr>{% endif %}
-    </table>
-  </div>
-  {% endif %}
-</div>
+{% set datos = [("Fecha", a.fecha|fecha_larga), ("Cliente", a.cliente.razon_social),
+                ("D.O.", a.do_numero), ("NIT", a.cliente.nit),
+                ("Aduana en", a.aduana), ("Cotización", a.cotizacion.numero if a.cotizacion else ""),
+                ("Origen", a.origen), ("Destino", a.destino),
+                ("Tipo de mercancía", a.tipo_mercancia), ("Doc. transporte", a.doc_transporte),
+                ("Partida arancelaria", a.partida_arancelaria), ("Tipo de cambio", ("$ " ~ (a.trm|numero) if a.trm else "")),
+                ("Fecha límite de pago", a.fecha_limite|fecha if a.fecha_limite else "")] %}
+{{ ficha(datos|selectattr(1)|list) }}
 
-<table class="items">
-  <thead><tr><th>Concepto</th><th class="der" style="width:22%">Valor de la operación</th><th class="der" style="width:12%">%</th><th class="der" style="width:20%">Valor anticipo</th></tr></thead>
-  <tbody><tr>
-    <td>{{ a.concepto or 'Anticipo para inicio de operación' }}</td>
-    <td class="der num">{{ a.cotizacion.total|moneda(a.moneda) if a.cotizacion else '—' }}</td>
-    <td class="der num">{{ (a.porcentaje|numero ~ '%') if a.porcentaje else '—' }}</td>
-    <td class="der num">{{ a.monto|moneda(a.moneda) }}</td>
-  </tr></tbody>
+{% if a.incluye_tributos %}
+<div class="barra">Liquidación de tributos aduaneros</div>
+<table class="ficha num">
+  <tr><td class="k">FOB</td><td class="v der">{{ a.fob|moneda('USD') }}</td><td class="k">Base gravable</td><td class="v der">{{ a.base_gravable|moneda('COP') }}</td></tr>
+  <tr><td class="k">Flete</td><td class="v der">{{ a.flete|moneda('USD') }}</td><td class="k">Arancel {{ a.arancel_pct|numero }}%</td><td class="v der">{{ a.arancel|moneda('COP') }}</td></tr>
+  <tr><td class="k">Seguro</td><td class="v der">{{ a.seguro|moneda('USD') }}</td><td class="k">Base IVA</td><td class="v der">{{ a.base_iva|moneda('COP') }}</td></tr>
+  <tr><td class="k">Otros gastos</td><td class="v der">{{ a.otros_cif|moneda('USD') }}</td><td class="k">IVA {{ a.iva_tributo_pct|numero }}%</td><td class="v der">{{ a.iva_tributo|moneda('COP') }}</td></tr>
+  <tr><td class="k"><strong>CIF</strong></td><td class="v der"><strong>{{ a.cif|moneda('USD') }}</strong></td><td class="k"><strong>Total tributos</strong></td><td class="v der"><strong>{{ a.tributos|moneda('COP') }}</strong></td></tr>
 </table>
+{% endif %}
 
-<div class="monto-grande">
-  <div><div class="etq">Valor a pagar</div>{% if a.fecha_limite %}<div style="font-size:8.5pt">Antes del {{ a.fecha_limite|fecha_larga }}</div>{% endif %}</div>
-  <div class="val num">{{ a.monto|moneda(a.moneda) }}</div>
+{% for grupo, items, subtotal in a.grupos %}
+<table class="items" style="margin-top:12px">
+  <thead><tr><th>{{ grupo }}</th><th class="der" style="width:22%">Valor</th></tr></thead>
+  <tbody>
+    {% for i in items %}<tr><td>{{ i.descripcion }}</td><td class="der num">{{ i.valor|moneda('COP') }}</td></tr>{% endfor %}
+    <tr><td class="der" style="color:#5E6066;font-weight:600">Subtotal {{ grupo|lower }}</td><td class="der num"><strong>{{ subtotal|moneda('COP') }}</strong></td></tr>
+  </tbody>
+</table>
+{% endfor %}
+
+<div class="caja-total">
+  <div><div class="etq">Total anticipo</div>
+    <div style="font-size:8pt;opacity:.85">{% if a.incluye_tributos %}Tributos {{ a.tributos|moneda('COP') }} + gastos {{ a.total_conceptos|moneda('COP') }}{% endif %}</div></div>
+  <div class="val num">{{ a.total|moneda('COP') }}</div>
 </div>
 
-{% if empresa.datos_bancarios %}<div class="seccion"><h4>Datos para el pago</h4><p>{{ empresa.datos_bancarios|parrafos }}</p></div>{% endif %}
-{% if a.notas %}<div class="seccion"><h4>Observaciones</h4><p>{{ a.notas|parrafos }}</p></div>{% endif %}
-<div class="seccion"><h4>Importante</h4><p>Por favor envíe el soporte de pago a {{ empresa.email or 'nuestro correo' }} indicando el número {{ a.numero }}. La operación inicia una vez se confirme el pago.</p></div>
+{% if a.notas %}<div class="bloque"><div class="barra">Observaciones</div><p>{{ a.notas|parrafos }}</p></div>{% endif %}
 
-<div class="firma"><strong>{{ empresa.nombre }}</strong><br><span style="color:#5B6779">Área financiera</span></div>
+{% if empresa.datos_bancarios or empresa.pie_anticipo %}
+<div class="nota" style="margin-top:14px">
+  {% if empresa.datos_bancarios %}<strong>Favor realizar la consignación a:</strong><br>{{ empresa.datos_bancarios|parrafos }}{% endif %}
+  {% if empresa.pie_anticipo %}<div style="margin-top:6px"><strong>{{ empresa.pie_anticipo }}</strong></div>{% endif %}
+</div>
+{% endif %}
+
+<div class="saludo">Cordial saludo,<br><strong>{{ (a.cotizacion.ejecutivo if a.cotizacion and a.cotizacion.ejecutivo) or empresa.nombre }}</strong>
+  {% if a.cotizacion and a.cotizacion.ejecutivo %}<br><span style="color:#5E6066">{{ empresa.nombre }}</span>{% endif %}</div>
 {% endblock %}

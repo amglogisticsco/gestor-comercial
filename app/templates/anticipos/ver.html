@@ -4,9 +4,9 @@
 {% block contenido %}
 <div class="encabezado">
   <div>
-    <div class="migas"><a href="{{ url_for('anticipos.lista') }}">Anticipos</a></div>
+    <div class="migas"><a href="{{ url_for('anticipos.lista') }}">Solicitudes de fondos</a></div>
     <h1>{{ a.numero }} &nbsp;{{ badge(a.estado, ESTADOS) }}</h1>
-    <p><a href="{{ url_for('clientes.ver', ident=a.cliente.id) }}">{{ a.cliente.razon_social }}</a>{% if a.cotizacion %} · <a href="{{ url_for('cotizaciones.ver', ident=a.cotizacion.id) }}">{{ a.cotizacion.numero }}</a>{% endif %}</p>
+    <p><a href="{{ url_for('clientes.ver', ident=a.cliente.id) }}">{{ a.cliente.razon_social }}</a>{% if a.do_numero %} · D.O. {{ a.do_numero }}{% endif %}{% if a.cotizacion %} · <a href="{{ url_for('cotizaciones.ver', ident=a.cotizacion.id) }}">{{ a.cotizacion.numero }}</a>{% endif %}</p>
   </div>
   <div class="acciones">
     <a class="btn" href="{{ url_for('anticipos.ver_pdf', ident=a.id) }}" target="_blank">{{ icono('pdf') }} Ver PDF</a>
@@ -16,30 +16,49 @@
   </div>
 </div>
 <div class="rejilla-3-1">
-  <div class="tarjeta"><div class="tarjeta-cab"><h2>Detalle</h2></div><div class="tarjeta-cuerpo">
-    <div class="kpi" style="padding:0 0 16px"><div class="etiqueta">Monto solicitado</div><div class="valor">{{ a.monto|moneda(a.moneda) }}</div>
-      {% if a.porcentaje %}<div class="detalle">{{ a.porcentaje|numero }}% de {{ a.cotizacion.total|moneda(a.moneda) if a.cotizacion else 'la operación' }}</div>{% endif %}</div>
-    <dl class="datos">
-      <dt>Concepto</dt><dd>{{ a.concepto or '—' }}</dd>
+  <div>
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Conceptos</h2></div>
+      <div class="tabla-envoltura"><table class="tabla">
+        <thead><tr><th>Concepto</th><th class="der">Valor</th></tr></thead>
+        <tbody>
+        {% if a.incluye_tributos %}
+          <tr><td class="principal-celda">Tributos aduaneros<div class="small muted">Arancel {{ a.arancel|moneda('COP') }} · IVA {{ a.iva_tributo|moneda('COP') }} · CIF {{ a.cif|moneda('USD') }} × TRM {{ a.trm|numero }}</div></td><td class="der num">{{ a.tributos|moneda('COP') }}</td></tr>
+        {% endif %}
+        {% for grupo, items, subtotal in a.grupos %}
+          <tr><td colspan="2" style="background:#FAFBFC" class="small"><strong>{{ grupo }}</strong></td></tr>
+          {% for i in items %}<tr><td>{{ i.descripcion }}</td><td class="der num">{{ i.valor|moneda('COP') }}</td></tr>{% endfor %}
+        {% endfor %}
+        </tbody></table></div>
+      <div class="totales num"><div class="total"><span>Total anticipo</span><span>{{ a.total|moneda('COP') }}</span></div></div>
+    </div>
+  </div>
+  <div>
+    <div class="tarjeta"><div class="tarjeta-cab"><h2>Estado</h2></div><div class="tarjeta-cuerpo">
+      {% if a.estado in ('pendiente', 'enviada') %}
+      <form method="post" action="{{ url_for('anticipos.cambiar_estado', ident=a.id) }}">{{ csrf() }}
+        <input type="hidden" name="estado" value="pagada">
+        <label>Fecha de pago</label><input type="date" name="fecha_pago" value="{{ hoy().isoformat() }}">
+        <button class="btn btn-exito" style="margin-top:10px;width:100%;justify-content:center" type="submit">Marcar como pagado</button>
+      </form>
+      <hr style="border:0;border-top:1px solid var(--borde);margin:16px 0">
+      {% endif %}
+      <form method="post" action="{{ url_for('anticipos.cambiar_estado', ident=a.id) }}" style="display:flex;gap:8px">{{ csrf() }}
+        <select name="estado">{% for k, v in estados.items() %}<option value="{{ k }}" {{ 'selected' if k == a.estado }}>{{ v }}</option>{% endfor %}</select>
+        <button class="btn" type="submit">Actualizar</button>
+      </form>
+    </div></div>
+    <div class="tarjeta"><div class="tarjeta-cab"><h2>Operación</h2></div><div class="tarjeta-cuerpo"><dl class="datos">
+      <dt>Tipo</dt><dd>{{ [a.tipo_operacion, a.modalidad]|select|join(' · ') or '—' }}</dd>
+      {% if a.aduana %}<dt>Aduana</dt><dd>{{ a.aduana }}</dd>{% endif %}
+      {% if a.origen or a.destino %}<dt>Ruta</dt><dd>{{ a.origen or '—' }} → {{ a.destino or '—' }}</dd>{% endif %}
+      {% if a.tipo_mercancia %}<dt>Mercancía</dt><dd>{{ a.tipo_mercancia }}</dd>{% endif %}
+      {% if a.doc_transporte %}<dt>Doc. transporte</dt><dd>{{ a.doc_transporte }}</dd>{% endif %}
+      {% if a.partida_arancelaria %}<dt>P.A.</dt><dd>{{ a.partida_arancelaria }}</dd>{% endif %}
       <dt>Fecha</dt><dd>{{ a.fecha|fecha }}</dd>
-      <dt>Fecha límite</dt><dd>{{ a.fecha_limite|fecha }}{% if a.vencido %} <span class="badge b-error">Vencido</span>{% endif %}</dd>
+      <dt>Fecha límite</dt><dd>{{ a.fecha_limite|fecha }}{% if a.vencido %} <span class="badge b-error">Vencida</span>{% endif %}</dd>
       {% if a.fecha_pago %}<dt>Pagado el</dt><dd>{{ a.fecha_pago|fecha }}</dd>{% endif %}
-      {% if a.notas %}<dt>Notas</dt><dd>{{ a.notas|parrafos }}</dd>{% endif %}
-    </dl>
-  </div></div>
-  <div class="tarjeta"><div class="tarjeta-cab"><h2>Estado</h2></div><div class="tarjeta-cuerpo">
-    {% if a.estado in ('pendiente', 'enviada') %}
-    <form method="post" action="{{ url_for('anticipos.cambiar_estado', ident=a.id) }}">{{ csrf() }}
-      <input type="hidden" name="estado" value="pagada">
-      <label>Fecha de pago</label><input type="date" name="fecha_pago" value="{{ hoy().isoformat() }}">
-      <button class="btn btn-exito" style="margin-top:10px;width:100%;justify-content:center" type="submit">Marcar como pagado</button>
-    </form>
-    <hr style="border:0;border-top:1px solid var(--borde);margin:16px 0">
-    {% endif %}
-    <form method="post" action="{{ url_for('anticipos.cambiar_estado', ident=a.id) }}" style="display:flex;gap:8px">{{ csrf() }}
-      <select name="estado">{% for k, v in estados.items() %}<option value="{{ k }}" {{ 'selected' if k == a.estado }}>{{ v }}</option>{% endfor %}</select>
-      <button class="btn" type="submit">Actualizar</button>
-    </form>
-  </div></div>
+    </dl></div></div>
+  </div>
 </div>
 {% endblock %}

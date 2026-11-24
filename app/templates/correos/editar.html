@@ -38,7 +38,7 @@
     <div class="preview">
       <div class="small muted" style="margin-bottom:10px"><strong>Para:</strong> <span id="pv-para">{{ correo.para }}</span><br><strong>Asunto:</strong> <span id="pv-asunto">{{ correo.asunto }}</span></div>
       <div class="preview-hoja">
-        <div class="preview-cab" style="background:{{ empresa_global().color or '#12304F' }}">{{ empresa_global().nombre }}</div>
+        <div class="preview-cab" style="background:{{ empresa_global().color or '#373435' }};border-bottom:3px solid {{ empresa_global().color_acento or '#ED3237' }}">{{ empresa_global().nombre }}</div>
         <div class="preview-cuerpo" id="pv-cuerpo">{{ correo.cuerpo }}</div>
         <div class="preview-firma">{{ firma }}</div>
       </div>

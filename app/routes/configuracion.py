@@ -5,15 +5,17 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from .. import db
 from ..models import MONEDAS, Empresa
 from . import a_numero
+from .usuarios import solo_admin
 
 bp = Blueprint("configuracion", __name__, url_prefix="/configuracion")
 
 EXTENSIONES_LOGO = {".png", ".jpg", ".jpeg", ".svg"}
-CAMPOS = ["nombre", "nit", "direccion", "ciudad", "telefono", "email", "web", "condiciones",
-          "datos_bancarios", "firma_correo", "cumple_asunto", "cumple_mensaje"]
+CAMPOS = ["nombre", "nit", "direccion", "ciudad", "telefono", "email", "web", "eslogan", "condiciones",
+          "nota_tarifas", "datos_bancarios", "pie_anticipo", "firma_correo", "cumple_asunto", "cumple_mensaje"]
 
 
 @bp.route("/", methods=["GET", "POST"])
+@solo_admin
 def empresa():
     emp = Empresa.actual()
     if request.method == "POST":
@@ -23,8 +25,9 @@ def empresa():
         emp.iva_pct = a_numero(request.form.get("iva_pct"), 19)
         emp.validez_dias = request.form.get("validez_dias", type=int) or 15
         emp.anticipo_pct = a_numero(request.form.get("anticipo_pct"), 50)
-        color = request.form.get("color", "").strip()
-        emp.color = color if color.startswith("#") and len(color) in (4, 7) else "#12304F"
+        for campo, defecto in (("color", "#373435"), ("color_acento", "#ED3237")):
+            color = request.form.get(campo, "").strip()
+            setattr(emp, campo, color if color.startswith("#") and len(color) in (4, 7) else defecto)
         emp.cumple_auto_envio = request.form.get("cumple_auto_envio") == "1"
 
         logo = request.files.get("logo")

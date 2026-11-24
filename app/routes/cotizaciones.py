@@ -1,18 +1,22 @@
 from datetime import date
 
 from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
+from flask_login import current_user
 
 from .. import db
-from ..models import (ESTADOS_COTIZACION, INCOTERMS, MODALIDADES, MONEDAS, TIPOS_OPERACION, Cliente, Cotizacion,
-                      Empresa, ItemCotizacion, Servicio, siguiente_numero)
+from ..models import (CONDICIONES_PAGO, CONTENEDORES, ESTADOS_COTIZACION, INCOTERMS, MODALIDADES, MONEDAS,
+                      TIPOS_CARGA, TIPOS_OPERACION, TRANSPORTISTAS, Cliente, Cotizacion, Empresa, ItemCotizacion,
+                      Servicio, siguiente_numero)
 from ..services import correo as servicio_correo
 from ..services import pdf
 from . import a_fecha, a_numero, obtener
 
 bp = Blueprint("cotizaciones", __name__, url_prefix="/cotizaciones")
 
-CAMPOS_TEXTO = ["tipo_operacion", "modalidad", "incoterm", "origen", "destino", "mercancia",
-                "bultos", "peso_kg", "volumen_m3", "notas", "condiciones"]
+CAMPOS_TEXTO = ["ejecutivo", "condicion_pago", "tipo_operacion", "modalidad", "incoterm", "origen", "destino", "ruta",
+                "mercancia", "tipo_carga", "contenedor", "transportista", "bultos", "peso_kg", "peso_vol",
+                "volumen_m3", "dimensiones", "tiempo_transito", "dias_libres_origen", "dias_libres_destino",
+                "notas", "condiciones", "nota_tarifas"]
 
 
 @bp.route("/")
@@ -31,6 +35,9 @@ def _contexto_form(cot):
         "clientes": Cliente.query.filter_by(activo=True).order_by(Cliente.razon_social).all(),
         "servicios": Servicio.query.filter_by(activo=True).order_by(Servicio.nombre).all(),
         "tipos": TIPOS_OPERACION, "modalidades": MODALIDADES, "incoterms": INCOTERMS, "monedas": MONEDAS,
+        "condiciones_pago": CONDICIONES_PAGO, "tipos_carga": TIPOS_CARGA, "contenedores": CONTENEDORES,
+        "transportistas": sorted(set(TRANSPORTISTAS) | {t for (t,) in db.session.query(Cotizacion.transportista)
+                                                        .distinct() if t}),
     }
 
 
@@ -53,6 +60,7 @@ def _guardar(cot):
     precios = request.form.getlist("item_precio")
     ivas = request.form.getlist("item_iva")
     servicios = request.form.getlist("item_servicio")
+    observaciones = request.form.getlist("item_obs")
     nuevos = []
     for i, descripcion in enumerate(descripciones):
         if not descripcion.strip():
@@ -62,7 +70,8 @@ def _guardar(cot):
             cantidad=a_numero(cantidades[i] if i < len(cantidades) else 1, 1),
             unidad=(unidades[i] if i < len(unidades) else "").strip() or "Servicio",
             precio=a_numero(precios[i] if i < len(precios) else 0),
-            aplica_iva=(ivas[i] if i < len(ivas) else "1") == "1",
+            aplica_iva=(ivas[i] if i < len(ivas) else "0") == "1",
+            observacion=(observaciones[i] if i < len(observaciones) else "").strip(),
             servicio_id=int(servicios[i]) if i < len(servicios) and servicios[i].isdigit() else None,
         ))
     if not nuevos:
@@ -77,7 +86,7 @@ def nueva():
     empresa = Empresa.actual()
     cot = Cotizacion(cliente_id=request.args.get("cliente_id", type=int), fecha=date.today(),
                      validez_dias=empresa.validez_dias, moneda=empresa.moneda, iva_pct=empresa.iva_pct,
-                     condiciones=empresa.condiciones)
+                     condiciones=empresa.condiciones, nota_tarifas=empresa.nota_tarifas, ejecutivo=current_user.nombre)
     if request.method == "POST":
         if _guardar(cot):
             cot.numero = siguiente_numero(Cotizacion, "COT")
@@ -135,7 +144,8 @@ def duplicar(ident):
     for campo in CAMPOS_TEXTO:
         setattr(copia, campo, getattr(origen, campo))
     copia.items = [ItemCotizacion(orden=i.orden, descripcion=i.descripcion, cantidad=i.cantidad, unidad=i.unidad,
-                                  precio=i.precio, aplica_iva=i.aplica_iva, servicio_id=i.servicio_id)
+                                  precio=i.precio, aplica_iva=i.aplica_iva, servicio_id=i.servicio_id,
+                                  observacion=i.observacion)
                    for i in origen.items]
     db.session.add(copia)
     db.session.commit()

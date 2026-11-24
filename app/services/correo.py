@@ -27,7 +27,12 @@ def _rellenar(texto, **datos):
 def firma(empresa):
     if empresa.firma_correo:
         return empresa.firma_correo
-    lineas = [empresa.nombre, empresa.telefono, empresa.email, empresa.web]
+    from flask_login import current_user
+    autenticado = getattr(current_user, "is_authenticated", False)
+    nombre = current_user.nombre if autenticado else ""
+    cargo = current_user.cargo if autenticado else ""
+    telefono = (current_user.telefono if autenticado else "") or empresa.telefono
+    lineas = [nombre, cargo, empresa.nombre, telefono, empresa.email, empresa.web]
     return "\n".join(l for l in lineas if l)
 
 
@@ -41,7 +46,7 @@ def borrador_cotizacion(cot):
         f"{cot.resumen}, por un valor total de {moneda(cot.total, cot.moneda)}.\n\n"
         f"La oferta tiene una vigencia de {cot.validez_dias} días (hasta el {fecha_larga(cot.vence)}). "
         "Quedamos atentos a sus comentarios o a cualquier ajuste que requiera.\n\n"
-        "Cordialmente,"
+        "Cordial saludo,"
     )
     return _crear(cliente, "cotizacion", asunto, cuerpo, "cotizacion", cot.id)
 
@@ -50,17 +55,17 @@ def borrador_anticipo(ant):
     empresa = Empresa.actual()
     cliente = ant.cliente
     referencia = f" (cotización {ant.cotizacion.numero})" if ant.cotizacion else ""
-    porcentaje = f" ({ant.porcentaje:g}% del total)" if ant.porcentaje else ""
-    limite = f", con fecha límite de pago el {fecha_larga(ant.fecha_limite)}" if ant.fecha_limite else ""
-    banco = f"\n\nPuede realizar el pago a la siguiente cuenta:\n{empresa.datos_bancarios}" if empresa.datos_bancarios else ""
-    asunto = f"Solicitud de anticipo {ant.numero} – {empresa.nombre}"
+    do = f", D.O. {ant.do_numero}" if ant.do_numero else ""
+    limite = f", preferiblemente antes del {fecha_larga(ant.fecha_limite)}" if ant.fecha_limite else ""
+    banco = f"\n\nPuede realizar la consignación a:\n{empresa.datos_bancarios}" if empresa.datos_bancarios else ""
+    pie = f"\n\n{empresa.pie_anticipo}" if empresa.pie_anticipo else ""
+    asunto = f"Solicitud de fondos {ant.numero}{do} – {empresa.nombre}"
     cuerpo = (
         f"Buen día, {cliente.nombre_saludo}:\n\n"
-        f"Con el fin de dar inicio a la operación{referencia}, le solicitamos amablemente el anticipo "
-        f"por valor de {moneda(ant.monto, ant.moneda)}{porcentaje}{limite}.{banco}\n\n"
-        "Le agradecemos enviarnos el soporte de pago respondiendo a este correo. "
-        "Adjuntamos el documento de solicitud.\n\n"
-        "Cordialmente,"
+        f"Reciba un cordial saludo. Para dar continuidad a la operación{referencia}{do}, adjuntamos la "
+        f"solicitud de fondos {ant.numero} por valor de {moneda(ant.total, 'COP')}{limite}.{banco}{pie}\n\n"
+        "Le agradecemos enviarnos el soporte de pago respondiendo a este correo.\n\n"
+        "Cordial saludo,"
     )
     return _crear(cliente, "anticipo", asunto, cuerpo, "anticipo", ant.id)
 
@@ -76,7 +81,7 @@ def borrador_cumpleanos(cliente):
 
 
 def borrador_libre(cliente):
-    return _crear(cliente, "libre", "", f"Buen día, {cliente.nombre_saludo}:\n\n\n\nCordialmente,")
+    return _crear(cliente, "libre", "", f"Buen día, {cliente.nombre_saludo}:\n\n\n\nCordial saludo,")
 
 
 def _crear(cliente, tipo, asunto, cuerpo, adjunto_tipo=None, adjunto_id=None):

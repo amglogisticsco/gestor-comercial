@@ -1,7 +1,7 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from .. import db
-from ..models import Servicio
+from ..models import GRUPOS_ANTICIPO, Servicio
 from . import a_numero, obtener
 
 bp = Blueprint("servicios", __name__, url_prefix="/servicios")
@@ -18,6 +18,7 @@ def lista():
         servicio.precio = a_numero(request.form.get("precio"))
         servicio.aplica_iva = request.form.get("aplica_iva") == "1"
         servicio.activo = request.form.get("activo", "1") == "1"
+        servicio.grupo = request.form.get("grupo") if request.form.get("grupo") in GRUPOS_ANTICIPO else GRUPOS_ANTICIPO[-1]
         if not servicio.nombre:
             flash("El nombre del servicio es obligatorio.", "error")
         else:
@@ -27,4 +28,5 @@ def lista():
             flash("Servicio guardado.", "ok")
         return redirect(url_for("servicios.lista"))
     return render_template("servicios/lista.html",
-                           servicios=Servicio.query.order_by(Servicio.activo.desc(), Servicio.nombre).all())
+                           servicios=Servicio.query.order_by(Servicio.activo.desc(), Servicio.nombre).all(),
+                           grupos=GRUPOS_ANTICIPO)

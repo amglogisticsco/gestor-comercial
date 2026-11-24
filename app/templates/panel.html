@@ -17,7 +17,7 @@
   <div class="tarjeta kpi"><div class="etiqueta">Cotizado este mes</div><div class="valor">{{ kpi.cotizado_mes|moneda }}</div><div class="detalle">{{ kpi.cotizaciones_mes }} {{ "cotización" if kpi.cotizaciones_mes == 1 else "cotizaciones" }}</div></div>
   <div class="tarjeta kpi"><div class="etiqueta">Aprobadas este mes</div><div class="valor">{{ kpi.aprobadas_mes }}</div><div class="detalle">de {{ kpi.cotizaciones_mes }} emitidas</div></div>
   <div class="tarjeta kpi"><div class="etiqueta">Esperando respuesta</div><div class="valor">{{ kpi.en_espera }}</div><div class="detalle">cotizaciones enviadas</div></div>
-  <div class="tarjeta kpi"><div class="etiqueta">Anticipos por cobrar</div><div class="valor">{{ kpi.por_cobrar|moneda }}</div><div class="detalle">{{ kpi.anticipos_pendientes }} {{ "solicitud" if kpi.anticipos_pendientes == 1 else "solicitudes" }}</div></div>
+  <div class="tarjeta kpi"><div class="etiqueta">Fondos por cobrar</div><div class="valor">{{ kpi.por_cobrar|moneda }}</div><div class="detalle">{{ kpi.anticipos_pendientes }} {{ "solicitud" if kpi.anticipos_pendientes == 1 else "solicitudes" }}</div></div>
 </div>
 
 <div class="rejilla-3-1">
@@ -38,7 +38,7 @@
     </div>
 
     <div class="tarjeta">
-      <div class="tarjeta-cab"><h2>Anticipos por cobrar</h2><a href="{{ url_for('anticipos.lista') }}" class="small">Ver todos</a></div>
+      <div class="tarjeta-cab"><h2>Solicitudes de fondos por cobrar</h2><a href="{{ url_for('anticipos.lista') }}" class="small">Ver todos</a></div>
       {% if por_cobrar %}
       <div class="tabla-envoltura"><table class="tabla">
         <thead><tr><th>Número</th><th>Cliente</th><th>Fecha límite</th><th class="der">Monto</th></tr></thead>
@@ -50,7 +50,7 @@
             <td class="der num">{{ a.monto|moneda(a.moneda) }}</td></tr>
         {% endfor %}
         </tbody></table></div>
-      {% else %}<div class="vacio">No hay anticipos pendientes.</div>{% endif %}
+      {% else %}<div class="vacio">No hay solicitudes de fondos pendientes.</div>{% endif %}
     </div>
   </div>
 

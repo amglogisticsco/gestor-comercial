@@ -1,58 +1,150 @@
 {% extends "base.html" %}
-{% from "_macros.html" import csrf with context %}
-{% block titulo %}{{ 'Editar ' ~ a.numero if a.id else 'Nueva solicitud de anticipo' }}{% endblock %}
+{% from "_macros.html" import icono, csrf with context %}
+{% block titulo %}{{ 'Editar ' ~ a.numero if a.id else 'Nueva solicitud de fondos' }}{% endblock %}
 {% block contenido %}
 <div class="encabezado"><div>
-  <div class="migas"><a href="{{ url_for('anticipos.lista') }}">Anticipos</a>{% if a.id %} / <a href="{{ url_for('anticipos.ver', ident=a.id) }}">{{ a.numero }}</a>{% endif %}</div>
-  <h1>{{ 'Editar ' ~ a.numero if a.id else 'Nueva solicitud de anticipo' }}</h1>
+  <div class="migas"><a href="{{ url_for('anticipos.lista') }}">Solicitudes de fondos</a>{% if a.id %} / <a href="{{ url_for('anticipos.ver', ident=a.id) }}">{{ a.numero }}</a>{% endif %}</div>
+  <h1>{{ 'Editar ' ~ a.numero if a.id else 'Nueva solicitud de fondos' }}</h1>
 </div></div>
-<form method="post" class="tarjeta">
+{% if aviso_usd %}<div class="alerta alerta-info">La cotización {{ cot_origen.numero }} está en {{ cot_origen.moneda }}. Se copiaron los conceptos; escribe sus valores en pesos.</div>{% endif %}
+
+<form method="post" id="form-sf">
   {{ csrf() }}
-  <div class="seccion-form">
-    <h3>Origen</h3>
-    <div class="form-grid">
-      <div class="c-6"><label>Cotización <span class="opc">(recomendado)</span></label>
+  <div class="tarjeta">
+    <div class="seccion-form"><h3>Datos de la operación</h3><div class="form-grid">
+      <div class="c-6"><label>Cotización <span class="opc">(opcional)</span></label>
         <select name="cotizacion_id" id="cotizacion">
-          <option value="" data-total="0">Sin cotización</option>
-          {% for c in cotizaciones %}<option value="{{ c.id }}" data-total="{{ c.total }}" data-moneda="{{ c.moneda }}" {{ 'selected' if c.id == a.cotizacion_id }}>{{ c.numero }} · {{ c.cliente.razon_social }} · {{ c.total|moneda(c.moneda) }}</option>{% endfor %}
+          <option value="">Sin cotización</option>
+          {% for c in cotizaciones %}<option value="{{ c.id }}" {{ 'selected' if c.id == a.cotizacion_id }}>{{ c.numero }} · {{ c.cliente.razon_social }}</option>{% endfor %}
         </select></div>
       <div class="c-6" id="bloque-cliente"><label>Cliente</label>
         <select name="cliente_id"><option value="">Selecciona…</option>
           {% for cl in clientes %}<option value="{{ cl.id }}" {{ 'selected' if cl.id == a.cliente_id }}>{{ cl.razon_social }}</option>{% endfor %}
         </select><div class="ayuda">Si eliges una cotización, se usa su cliente.</div></div>
-    </div>
-  </div>
-  <div class="seccion-form">
-    <h3>Valor y plazo</h3>
-    <div class="form-grid">
-      <div class="c-3"><label>Porcentaje <span class="opc">(%)</span></label><input type="text" name="porcentaje" id="porcentaje" value="{{ a.porcentaje|numero if a.porcentaje else '' }}" inputmode="decimal"></div>
-      <div class="c-3"><label>Monto</label><input type="text" name="monto" id="monto" value="{{ a.monto|crudo }}" inputmode="decimal" required></div>
-      <div class="c-2"><label>Moneda</label><select name="moneda">{% for m in monedas %}<option {{ 'selected' if m == a.moneda }}>{{ m }}</option>{% endfor %}</select></div>
+      <div class="c-3"><label>Tipo</label><select name="tipo_operacion">{% for t in tipos %}<option {{ 'selected' if t == a.tipo_operacion }}>{{ t }}</option>{% endfor %}</select></div>
+      <div class="c-3"><label>Modalidad</label><select name="modalidad"><option value=""></option>{% for m in modalidades %}<option {{ 'selected' if m == a.modalidad }}>{{ m }}</option>{% endfor %}</select></div>
+      <div class="c-2"><label>D.O.</label><input type="text" name="do_numero" value="{{ a.do_numero or '' }}"></div>
       <div class="c-2"><label>Fecha</label><input type="date" name="fecha" value="{{ a.fecha.isoformat() if a.fecha }}"></div>
       <div class="c-2"><label>Fecha límite</label><input type="date" name="fecha_limite" value="{{ a.fecha_limite.isoformat() if a.fecha_limite }}"></div>
-      <div class="c-12"><label>Concepto</label><input type="text" name="concepto" value="{{ a.concepto or '' }}" placeholder="Anticipo para inicio de operación"></div>
-      <div class="c-12"><label>Notas <span class="opc">(aparecen en el documento)</span></label><textarea name="notas" rows="3">{{ a.notas or '' }}</textarea></div>
+      <div class="c-3"><label>Aduana en</label><input type="text" name="aduana" value="{{ a.aduana or '' }}" placeholder="Cartagena"></div>
+      <div class="c-3"><label>Origen</label><input type="text" name="origen" value="{{ a.origen or '' }}"></div>
+      <div class="c-3"><label>Destino</label><input type="text" name="destino" value="{{ a.destino or '' }}"></div>
+      <div class="c-3"><label>Doc. transporte</label><input type="text" name="doc_transporte" value="{{ a.doc_transporte or '' }}" placeholder="BL / guía"></div>
+      <div class="c-6"><label>Tipo de mercancía</label><input type="text" name="tipo_mercancia" value="{{ a.tipo_mercancia or '' }}"></div>
+      <div class="c-3"><label>Partida arancelaria</label><input type="text" name="partida_arancelaria" value="{{ a.partida_arancelaria or '' }}"></div>
+      <div class="c-3"><label>Tipo de cambio (TRM)</label><input type="text" name="trm" id="trm" value="{{ a.trm|crudo }}" inputmode="decimal" placeholder="3.950,50"></div>
+    </div></div>
+
+    <div class="seccion-form"><h3>Liquidación de tributos <span class="opc" style="text-transform:none;letter-spacing:0;font-weight:400">· opcional, valores en USD</span></h3>
+      <div class="form-grid">
+        <div class="c-2"><label>FOB</label><input type="text" name="fob" class="trib" value="{{ a.fob|crudo }}" inputmode="decimal"></div>
+        <div class="c-2"><label>Flete</label><input type="text" name="flete" class="trib" value="{{ a.flete|crudo }}" inputmode="decimal"></div>
+        <div class="c-2"><label>Seguro</label><input type="text" name="seguro" class="trib" value="{{ a.seguro|crudo }}" inputmode="decimal"></div>
+        <div class="c-2"><label>Otros gastos</label><input type="text" name="otros_cif" class="trib" value="{{ a.otros_cif|crudo }}" inputmode="decimal"></div>
+        <div class="c-2"><label>Arancel %</label><input type="text" name="arancel_pct" class="trib" value="{{ a.arancel_pct|numero }}" inputmode="decimal"></div>
+        <div class="c-2"><label>IVA %</label><input type="text" name="iva_tributo_pct" class="trib" value="{{ a.iva_tributo_pct|numero }}" inputmode="decimal"></div>
+      </div>
+      <div class="preview num" style="margin-top:14px;padding:12px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 18px">
+        <div><div class="small muted">CIF (USD)</div><strong id="r-cif">0</strong></div>
+        <div><div class="small muted">Base gravable</div><strong id="r-base">0</strong></div>
+        <div><div class="small muted">Arancel</div><strong id="r-arancel">0</strong></div>
+        <div><div class="small muted">IVA</div><strong id="r-iva">0</strong></div>
+        <div><div class="small muted">Total tributos</div><strong id="r-trib">0</strong></div>
+      </div>
     </div>
   </div>
-  <div class="pie-form">
-    <a class="btn" href="{{ url_for('anticipos.ver', ident=a.id) if a.id else url_for('anticipos.lista') }}">Cancelar</a>
-    <button class="btn btn-primario" type="submit">Guardar solicitud</button>
+
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><h2>Conceptos (COP)</h2></div>
+    <div class="tabla-envoltura"><table class="tabla items">
+      <thead><tr><th style="width:26%">Grupo</th><th>Concepto</th><th style="width:20%">Valor</th><th></th></tr></thead>
+      <tbody id="items"></tbody>
+    </table></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;padding:12px 18px 0">
+      <select id="agregar-servicio" style="max-width:380px">
+        <option value="">+ Agregar concepto del catálogo…</option>
+        {% for g in grupos %}<optgroup label="{{ g }}">{% for s in servicios if s.grupo == g %}<option value="{{ s.id }}">{{ s.nombre }}</option>{% endfor %}</optgroup>{% endfor %}
+      </select>
+      <button class="btn" type="button" onclick="agregarFila()">{{ icono('mas') }} Línea libre</button>
+    </div>
+    <div class="totales num">
+      <div><span class="muted">Tributos</span><span id="t-trib">0</span></div>
+      <div><span class="muted">Gastos y servicios</span><span id="t-gastos">0</span></div>
+      <div class="total"><span>Total anticipo</span><span id="t-total">0</span></div>
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="seccion-form"><div class="form-grid">
+      <div class="c-12"><label>Concepto general <span class="opc">(referencia interna)</span></label><input type="text" name="concepto" value="{{ a.concepto or '' }}"></div>
+      <div class="c-12"><label>Observaciones <span class="opc">(aparecen en el documento)</span></label><textarea name="notas" rows="2">{{ a.notas or '' }}</textarea></div>
+    </div></div>
+    <div class="pie-form">
+      <a class="btn" href="{{ url_for('anticipos.ver', ident=a.id) if a.id else url_for('anticipos.lista') }}">Cancelar</a>
+      <button class="btn btn-primario" type="submit">Guardar solicitud</button>
+    </div>
   </div>
 </form>
+
+<template id="fila">
+  <tr>
+    <td><select name="item_grupo">{% for g in grupos %}<option>{{ g }}</option>{% endfor %}</select></td>
+    <td><input type="text" name="item_descripcion" placeholder="Concepto"></td>
+    <td><input type="text" name="item_valor" value="0" inputmode="decimal"></td>
+    <td><button type="button" class="quitar" title="Quitar">×</button></td>
+  </tr>
+</template>
 {% endblock %}
 {% block scripts %}
 <script>
-const sel = document.getElementById('cotizacion'), pct = document.getElementById('porcentaje'), monto = document.getElementById('monto');
-function total() { return parseFloat(sel.selectedOptions[0].dataset.total || 0); }
-function calcular() {
-  const p = parseFloat((pct.value || '').replace(',', '.'));
-  if (total() && !isNaN(p)) monto.value = Math.round(total() * p / 100);
+const CATALOGO = { {% for s in servicios %}{{ s.id }}: {{ {"nombre": s.nombre, "grupo": s.grupo, "precio": s.precio}|tojson }},{% endfor %} };
+const EXISTENTES = [ {% for i in a.items %}{{ {"grupo": i.grupo, "descripcion": i.descripcion, "valor": i.valor}|tojson }},{% endfor %} ];
+const cuerpo = document.getElementById('items');
+const $ = n => document.querySelector('[name=' + n + ']');
+function aNumero(v) {
+  v = String(v || '').trim().replace(/\s|\$/g, '');
+  if (v.includes(',')) v = v.replace(/\./g, '').replace(',', '.');
+  else if ((v.match(/\./g) || []).length > 1 || /^\d+\.\d{3}$/.test(v)) v = v.replace(/\./g, '');
+  const n = parseFloat(v); return isNaN(n) ? 0 : n;
 }
-pct.addEventListener('input', calcular);
-sel.addEventListener('change', () => {
-  document.getElementById('bloque-cliente').style.opacity = sel.value ? .5 : 1;
-  calcular();
+const cop = n => '$ ' + Math.round(n).toLocaleString('es-CO');
+const usd = n => 'US$ ' + n.toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+function recalcular() {
+  const cif = ['fob','flete','seguro','otros_cif'].reduce((s, k) => s + aNumero($(k).value), 0);
+  const base = Math.round(cif * aNumero($('trm').value));
+  const arancel = Math.round(base * aNumero($('arancel_pct').value) / 100);
+  const iva = Math.round((base + arancel) * aNumero($('iva_tributo_pct').value) / 100);
+  const trib = arancel + iva;
+  let gastos = 0; cuerpo.querySelectorAll('[name=item_valor]').forEach(i => gastos += aNumero(i.value));
+  document.getElementById('r-cif').textContent = usd(cif);
+  document.getElementById('r-base').textContent = cop(base);
+  document.getElementById('r-arancel').textContent = cop(arancel);
+  document.getElementById('r-iva').textContent = cop(iva);
+  document.getElementById('r-trib').textContent = cop(trib);
+  document.getElementById('t-trib').textContent = cop(trib);
+  document.getElementById('t-gastos').textContent = cop(gastos);
+  document.getElementById('t-total').textContent = cop(trib + gastos);
+}
+function agregarFila(d) {
+  const tr = document.getElementById('fila').content.firstElementChild.cloneNode(true);
+  if (d) {
+    tr.querySelector('[name=item_grupo]').value = d.grupo;
+    tr.querySelector('[name=item_descripcion]').value = d.descripcion || '';
+    tr.querySelector('[name=item_valor]').value = d.valor ? Math.round(d.valor) : 0;
+  }
+  tr.querySelector('.quitar').onclick = () => { tr.remove(); recalcular(); };
+  tr.querySelectorAll('input').forEach(el => el.addEventListener('input', recalcular));
+  cuerpo.appendChild(tr); recalcular();
+  if (!d) tr.querySelector('[name=item_descripcion]').focus();
+}
+document.getElementById('agregar-servicio').addEventListener('change', e => {
+  const s = CATALOGO[e.target.value]; if (!s) return;
+  agregarFila({grupo: s.grupo, descripcion: s.nombre, valor: s.precio}); e.target.value = '';
 });
-document.getElementById('bloque-cliente').style.opacity = sel.value ? .5 : 1;
+document.querySelectorAll('.trib, #trm').forEach(el => el.addEventListener('input', recalcular));
+const sel = document.getElementById('cotizacion');
+const atenuar = () => document.getElementById('bloque-cliente').style.opacity = sel.value ? .5 : 1;
+sel.addEventListener('change', atenuar); atenuar();
+EXISTENTES.length ? EXISTENTES.forEach(agregarFila) : recalcular();
 </script>
 {% endblock %}

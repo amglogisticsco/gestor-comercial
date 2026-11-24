@@ -1,61 +1,78 @@
 {% extends "pdf/_base.html" %}
+{% macro ficha(pares) -%}
+<table class="ficha">
+{% for fila in pares|batch(2) %}
+  <tr>{% for k, v in fila %}<td class="k">{{ k }}</td><td class="v">{{ v }}</td>{% endfor %}{% if fila|length == 1 %}<td class="k"></td><td class="v"></td>{% endif %}</tr>
+{% endfor %}
+</table>
+{%- endmacro %}
 {% block documento %}
-  <div class="tipo">COTIZACIÓN</div>
-  <div class="numero">{{ c.numero }}</div>
-  <table>
-    <tr><td>Fecha</td><td>{{ c.fecha|fecha }}</td></tr>
-    <tr><td>Válida hasta</td><td>{{ c.vence|fecha }}</td></tr>
-    <tr><td>Moneda</td><td>{{ c.moneda }}</td></tr>
-  </table>
+  <div class="tipo">Cotización de servicios logísticos</div>
+  {% if c.asunto %}<div class="sub">{{ c.asunto }}</div>{% endif %}
+  <div class="numero">N.º {{ c.numero }}</div>
 {% endblock %}
 {% block cuerpo %}
-<div class="bloques">
-  <div class="bloque">
-    <h4>Cliente</h4>
-    <div class="fuerte">{{ c.cliente.razon_social }}</div>
-    {% if c.cliente.nit %}<div>NIT {{ c.cliente.nit }}</div>{% endif %}
-    {% if c.cliente.contacto_nombre %}<div>Atn.: {{ c.cliente.contacto_nombre }}{% if c.cliente.cargo %}, {{ c.cliente.cargo }}{% endif %}</div>{% endif %}
-    <div>{{ [c.cliente.email, c.cliente.telefono]|select|join(' · ') }}</div>
-    {% if c.cliente.direccion or c.cliente.ciudad %}<div>{{ [c.cliente.direccion, c.cliente.ciudad]|select|join(', ') }}</div>{% endif %}
-  </div>
-  {% if c.tiene_operacion %}
-  <div class="bloque">
-    <h4>Operación</h4>
-    <table>
-      {% if c.tipo_operacion or c.modalidad %}<tr><td>Tipo</td><td>{{ [c.tipo_operacion, c.modalidad]|select|join(' · ') }}</td></tr>{% endif %}
-      {% if c.incoterm %}<tr><td>Incoterm</td><td>{{ c.incoterm }}</td></tr>{% endif %}
-      {% if c.origen or c.destino %}<tr><td>Ruta</td><td>{{ c.origen or '—' }} → {{ c.destino or '—' }}</td></tr>{% endif %}
-      {% if c.mercancia %}<tr><td>Mercancía</td><td>{{ c.mercancia }}</td></tr>{% endif %}
-      {% if c.bultos or c.peso_kg or c.volumen_m3 %}<tr><td>Carga</td><td>{{ [c.bultos ~ ' bultos' if c.bultos, c.peso_kg ~ ' kg' if c.peso_kg, c.volumen_m3 ~ ' m³' if c.volumen_m3]|select|join(' · ') }}</td></tr>{% endif %}
-    </table>
-  </div>
-  {% endif %}
-</div>
+{% set generales = [("Cliente", c.cliente.razon_social), ("Fecha", c.fecha|fecha_larga),
+                    ("NIT", c.cliente.nit), ("Vigencia", c.validez_dias ~ " días (hasta " ~ (c.vence|fecha) ~ ")"),
+                    ("Contacto", c.cliente.contacto_nombre), ("Moneda", c.moneda),
+                    ("Correo", c.cliente.email), ("Ejecutivo", c.ejecutivo),
+                    ("Teléfono", c.cliente.telefono), ("Condición", c.condicion_pago)] %}
+{{ ficha(generales|selectattr(1)|list) }}
+
+{% if c.datos_servicio %}
+<div class="barra">Datos del servicio</div>
+{{ ficha(c.datos_servicio) }}
+{% endif %}
 
 <table class="items">
-  <thead><tr><th style="width:4%">#</th><th>Descripción</th><th class="der" style="width:9%">Cant.</th><th style="width:11%">Unidad</th><th class="der" style="width:16%">Valor unitario</th><th class="der" style="width:16%">Valor total</th></tr></thead>
+  <thead><tr>
+    <th style="width:5%">Ítem</th><th>Descripción del servicio</th><th class="der" style="width:7%">Cant.</th>
+    <th style="width:10%">Unidad</th><th class="der" style="width:13%">Tarifa</th><th class="der" style="width:13%">Subtotal</th>
+    <th class="der" style="width:11%">Impuestos</th><th class="der" style="width:13%">Total</th>
+  </tr></thead>
   <tbody>
-  {% for i in c.items %}
-    <tr><td>{{ loop.index }}</td><td>{{ i.descripcion }}{% if not i.aplica_iva %}<div class="nota-iva">No gravado con IVA</div>{% endif %}</td>
+  {% for i in c.items %}{% set imp = i.impuesto(c.iva_pct) %}
+    <tr><td>{{ loop.index }}</td><td>{{ i.descripcion }}{% if i.observacion %}<div class="obs">{{ i.observacion }}</div>{% endif %}</td>
       <td class="der num">{{ i.cantidad|numero }}</td><td>{{ i.unidad }}</td>
-      <td class="der num">{{ i.precio|moneda(c.moneda) }}</td><td class="der num">{{ i.total|moneda(c.moneda) }}</td></tr>
+      <td class="der num">{{ i.precio|moneda(c.moneda) }}</td><td class="der num">{{ i.total|moneda(c.moneda) }}</td>
+      <td class="der num">{{ imp|moneda(c.moneda) if imp else '—' }}</td><td class="der num">{{ (i.total + imp)|moneda(c.moneda) }}</td></tr>
   {% endfor %}
   </tbody>
 </table>
 
 <div class="resumen">
-  <div class="izq">
-    {% if c.notas %}<div class="seccion" style="margin-top:0"><h4>Observaciones</h4><p>{{ c.notas|parrafos }}</p></div>{% endif %}
-  </div>
+  <div class="izq">{% if c.notas %}<strong>Observaciones:</strong> {{ c.notas|parrafos }}{% endif %}</div>
   <table class="totales num">
     <tr><td>Subtotal</td><td class="der">{{ c.subtotal|moneda(c.moneda) }}</td></tr>
-    <tr><td>IVA {{ c.iva_pct|numero }}%</td><td class="der">{{ c.iva|moneda(c.moneda) }}</td></tr>
-    <tr class="total"><td>TOTAL</td><td class="der">{{ c.total|moneda(c.moneda) }}</td></tr>
+    <tr><td>Impuestos</td><td class="der">{{ c.iva|moneda(c.moneda) }}</td></tr>
+    <tr class="total"><td>TOTAL COTIZACIÓN</td><td class="der">{{ c.total|moneda(c.moneda) }}</td></tr>
   </table>
 </div>
 
-{% if c.condiciones %}<div class="seccion"><h4>Condiciones comerciales</h4><p>{{ c.condiciones|parrafos }}</p></div>{% endif %}
-<div class="seccion"><h4>Vigencia</h4><p>Esta oferta es válida por {{ c.validez_dias }} días calendario, hasta el {{ c.vence|fecha_larga }}.</p></div>
+{% if c.nota_tarifas %}<div class="nota"><strong>Nota:</strong> {{ c.nota_tarifas }}</div>{% endif %}
 
-<div class="firma"><strong>{{ empresa.nombre }}</strong><br><span style="color:#5B6779">Área comercial</span></div>
+{% set lineas = (c.condiciones or '').splitlines()|map('trim')|select|list %}
+{% if lineas %}
+<div class="bloque">
+  <div class="barra">Condiciones y observaciones</div>
+  <ul class="vinetas">
+    {% for l in lineas %}<li>{{ l.lstrip('•-– ') }}</li>{% endfor %}
+    <li>Vigencia de la cotización: {{ c.validez_dias }} días, hasta el {{ c.vence|fecha_larga }}.</li>
+  </ul>
+</div>
+{% endif %}
+
+<div class="bloque">
+  <div class="barra">Aceptación de la cotización</div>
+  <table class="firmas">
+    <tr><td>Nombre:<span class="linea"></span></td><td>Fecha:<span class="linea"></span></td></tr>
+    <tr><td>Empresa:<span class="linea"></span></td><td>Cargo:<span class="linea"></span></td></tr>
+    <tr><td colspan="2">Firma / Aprobación:<span class="linea" style="width:40%"></span></td></tr>
+  </table>
+</div>
+
+<div class="saludo">
+  Esperamos que esta oferta sea de su interés. Si necesita información adicional, no dude en contactarnos.<br><br>
+  Cordial saludo,<br><strong>{{ c.ejecutivo or empresa.nombre }}</strong>{% if c.ejecutivo %}<br><span style="color:#5E6066">{{ empresa.nombre }}</span>{% endif %}
+</div>
 {% endblock %}

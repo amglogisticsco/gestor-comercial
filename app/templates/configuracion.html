@@ -14,19 +14,23 @@
       <div class="c-4"><label>Teléfono</label><input type="text" name="telefono" value="{{ e.telefono }}"></div>
       <div class="c-4"><label>Correo</label><input type="email" name="email" value="{{ e.email }}"></div>
       <div class="c-4"><label>Sitio web</label><input type="text" name="web" value="{{ e.web }}"></div>
+      <div class="c-12"><label>Eslogan <span class="opc">(pie de página de los PDF)</span></label><input type="text" name="eslogan" value="{{ e.eslogan }}"></div>
       <div class="c-8"><label>Logo <span class="opc">(PNG, JPG o SVG)</span></label><input type="file" name="logo" accept=".png,.jpg,.jpeg,.svg">
         {% if e.logo %}<div style="display:flex;align-items:center;gap:14px;margin-top:10px"><img src="{{ url_for('configuracion.logo') }}" alt="Logo" style="max-height:48px;border:1px solid var(--borde);border-radius:6px;padding:4px;background:#fff">
           <label class="check" style="margin:0"><input type="checkbox" name="quitar_logo" value="1"> Quitar logo</label></div>{% endif %}</div>
-      <div class="c-4"><label>Color de marca</label><input type="color" name="color" value="{{ e.color or '#12304F' }}" style="height:38px;padding:3px;width:100%;border:1px solid #D3DAE4;border-radius:8px"></div>
+      <div class="c-2"><label>Color principal</label><input type="color" name="color" value="{{ e.color or '#373435' }}" style="height:38px;padding:3px;width:100%;border:1px solid #D3DAE4;border-radius:8px"></div>
+      <div class="c-2"><label>Color de acento</label><input type="color" name="color_acento" value="{{ e.color_acento or '#ED3237' }}" style="height:38px;padding:3px;width:100%;border:1px solid #D3DAE4;border-radius:8px"></div>
     </div></div>
 
-    <div class="seccion-form"><h3>Cotizaciones y anticipos</h3><div class="form-grid">
+    <div class="seccion-form"><h3>Cotizaciones y solicitudes de fondos</h3><div class="form-grid">
       <div class="c-3"><label>Moneda por defecto</label><select name="moneda">{% for m in monedas %}<option {{ 'selected' if m == e.moneda }}>{{ m }}</option>{% endfor %}</select></div>
       <div class="c-3"><label>IVA (%)</label><input type="text" name="iva_pct" value="{{ e.iva_pct|numero }}"></div>
       <div class="c-3"><label>Validez (días)</label><input type="number" name="validez_dias" value="{{ e.validez_dias }}" min="1"></div>
-      <div class="c-3"><label>Anticipo sugerido (%)</label><input type="text" name="anticipo_pct" value="{{ e.anticipo_pct|numero }}"></div>
-      <div class="c-6"><label>Condiciones comerciales por defecto</label><textarea name="condiciones" rows="5">{{ e.condiciones }}</textarea></div>
-      <div class="c-6"><label>Datos bancarios <span class="opc">(van en anticipos y correos de cobro)</span></label><textarea name="datos_bancarios" rows="5" placeholder="Banco: …&#10;Cuenta corriente N.º …&#10;Titular: …&#10;NIT: …">{{ e.datos_bancarios }}</textarea></div>
+      <input type="hidden" name="anticipo_pct" value="{{ e.anticipo_pct|numero }}">
+      <div class="c-12"><label>Nota de tarifas</label><textarea name="nota_tarifas" rows="2">{{ e.nota_tarifas }}</textarea></div>
+      <div class="c-12"><label>Condiciones y observaciones <span class="opc">(una por línea)</span></label><textarea name="condiciones" rows="8">{{ e.condiciones }}</textarea></div>
+      <div class="c-6"><label>Datos bancarios <span class="opc">(solicitudes de fondos y correos)</span></label><textarea name="datos_bancarios" rows="3">{{ e.datos_bancarios }}</textarea></div>
+      <div class="c-6"><label>Nota al pie de la solicitud de fondos</label><textarea name="pie_anticipo" rows="3">{{ e.pie_anticipo }}</textarea></div>
     </div></div>
 
     <div class="seccion-form"><h3>Correos</h3><div class="form-grid">

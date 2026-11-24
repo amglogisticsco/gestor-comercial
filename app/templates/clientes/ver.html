@@ -30,7 +30,7 @@
       {% else %}<div class="vacio">Sin cotizaciones.</div>{% endif %}
     </div>
     <div class="tarjeta">
-      <div class="tarjeta-cab"><h2>Anticipos</h2><a class="small" href="{{ url_for('anticipos.nuevo', cliente_id=cliente.id) }}">Nuevo anticipo</a></div>
+      <div class="tarjeta-cab"><h2>Solicitudes de fondos</h2><a class="small" href="{{ url_for('anticipos.nuevo', cliente_id=cliente.id) }}">Nueva solicitud</a></div>
       {% if cliente.anticipos %}
       <div class="tabla-envoltura"><table class="tabla">
         <thead><tr><th>Número</th><th>Fecha límite</th><th>Estado</th><th class="der">Monto</th></tr></thead>
@@ -38,7 +38,7 @@
           <tr><td><a class="principal-celda" href="{{ url_for('anticipos.ver', ident=a.id) }}">{{ a.numero }}</a></td><td>{{ a.fecha_limite|fecha }}</td>
           <td>{{ badge(a.estado, ESTADOS) }}</td><td class="der num">{{ a.monto|moneda(a.moneda) }}</td></tr>
         {% endfor %}</tbody></table></div>
-      {% else %}<div class="vacio">Sin anticipos.</div>{% endif %}
+      {% else %}<div class="vacio">Sin solicitudes de fondos.</div>{% endif %}
     </div>
     <div class="tarjeta">
       <div class="tarjeta-cab"><h2>Historial de correos</h2></div>

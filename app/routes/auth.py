@@ -19,7 +19,7 @@ def setup():
         if not nombre or not email or len(clave) < 8:
             flash("Completa todos los campos. La contraseña debe tener al menos 8 caracteres.", "error")
         else:
-            usuario = Usuario(nombre=nombre, email=email)
+            usuario = Usuario(nombre=nombre, email=email, rol="admin")
             usuario.set_password(clave)
             db.session.add(usuario)
             if empresa_nombre:
@@ -37,11 +37,14 @@ def login():
         return redirect(url_for("auth.setup"))
     if request.method == "POST":
         usuario = Usuario.query.filter_by(email=request.form.get("email", "").strip().lower()).first()
-        if usuario and usuario.check_password(request.form.get("clave", "")):
+        if not usuario or not usuario.check_password(request.form.get("clave", "")):
+            flash("Correo o contraseña incorrectos.", "error")
+        elif not usuario.activo:
+            flash("Tu usuario está desactivado. Habla con el administrador.", "error")
+        else:
             login_user(usuario, remember=True)
             destino = request.args.get("next", "")
             return redirect(destino if destino.startswith("/") and not destino.startswith("//") else url_for("panel.inicio"))
-        flash("Correo o contraseña incorrectos.", "error")
     return render_template("auth/login.html", empresa=Empresa.actual())
 
 

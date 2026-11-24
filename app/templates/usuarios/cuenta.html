@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block titulo %}Mi cuenta{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div><h1>Mi cuenta</h1><p>{{ current_user.email }} · {{ 'Administrador' if current_user.es_admin else 'Usuario' }}</p></div></div>
+<form method="post" class="tarjeta" style="max-width:820px">
+  {{ csrf() }}
+  <div class="seccion-form"><h3>Mis datos</h3><div class="form-grid">
+    <div class="c-6"><label>Nombre completo</label><input type="text" name="nombre" value="{{ current_user.nombre }}" required></div>
+    <div class="c-6"><label>Cargo</label><input type="text" name="cargo" value="{{ current_user.cargo or '' }}"></div>
+    <div class="c-6"><label>Teléfono / WhatsApp</label><input type="text" name="telefono" value="{{ current_user.telefono or '' }}"></div>
+    <div class="c-12 ayuda">Tu nombre sale como ejecutivo en las cotizaciones y, junto con tu cargo y teléfono, en la firma de tus correos.</div>
+  </div></div>
+  <div class="seccion-form"><h3>Cambiar contraseña <span class="opc" style="text-transform:none;letter-spacing:0;font-weight:400">· opcional</span></h3><div class="form-grid">
+    <div class="c-4"><label>Contraseña actual</label><input type="password" name="clave_actual" autocomplete="current-password"></div>
+    <div class="c-4"><label>Nueva contraseña</label><input type="password" name="clave_nueva" minlength="8" autocomplete="new-password"></div>
+    <div class="c-4"><label>Confirmar nueva</label><input type="password" name="clave_confirmar" minlength="8" autocomplete="new-password"></div>
+  </div></div>
+  <div class="pie-form"><button class="btn btn-primario" type="submit">Guardar</button></div>
+</form>
+{% endblock %}

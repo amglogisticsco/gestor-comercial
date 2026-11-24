@@ -1,6 +1,7 @@
 {% extends "auth/_acceso.html" %}
 {% block titulo %}Iniciar sesión · {{ empresa.nombre }}{% endblock %}
 {% block contenido %}
+{% if empresa.logo %}<img src="{{ url_for('configuracion.logo') }}" alt="{{ empresa.nombre }}" style="height:64px;margin-bottom:18px">{% endif %}
 <h1>{{ empresa.nombre }}</h1>
 <p class="muted" style="margin:0 0 22px">Ingresa a tu gestor comercial.</p>
 <form method="post">

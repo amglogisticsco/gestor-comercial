@@ -486,6 +486,8 @@ CATALOGO_INICIAL = [
 
 DATOS_EMPRESA = {
     "nombre": "AMG LOGISTICS SAS",
+    "nit": "901100033-0",
+    "web": "https://amglogisticsco.com/",
     "direccion": "Transversal 42 No. 3-14 Piso 1",
     "ciudad": "Bogotá D.C.",
     "telefono": "+57 310 800 0481",

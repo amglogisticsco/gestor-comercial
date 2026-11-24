@@ -71,7 +71,7 @@
       {% if empresa.nit %}<div class="linea">NIT {{ empresa.nit }}</div>{% endif %}
       {% if empresa.direccion %}<div class="linea">{{ empresa.direccion }}{% if empresa.ciudad %} · {{ empresa.ciudad }}{% endif %}</div>{% endif %}
       {% if empresa.telefono %}<div class="linea">Tel. / WhatsApp {{ empresa.telefono }}</div>{% endif %}
-      <div class="linea">{{ [empresa.email, empresa.web]|select|join(' · ') }}</div>
+      <div class="linea">{{ [empresa.email, (empresa.web or '')|replace('https://', '')|replace('http://', '')|trim('/')]|select|join(' · ') }}</div>
     </div>
   </div>
   <div class="doc">{% block documento %}{% endblock %}</div>

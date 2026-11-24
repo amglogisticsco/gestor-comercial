@@ -49,10 +49,11 @@ def create_app(config_extra=None):
     login_manager.init_app(app)
 
     from . import filtros, models  # noqa: F401
-    from .routes import anticipos, auth, clientes, configuracion, correos, cotizaciones, panel, servicios, usuarios
+    from .routes import (anticipos, auth, clientes, configuracion, correos, cotizaciones, panel, servicios, tarifas,
+                         usuarios)
 
     filtros.registrar(app)
-    for modulo in (auth, panel, clientes, servicios, cotizaciones, anticipos, correos, configuracion, usuarios):
+    for modulo in (auth, panel, clientes, servicios, tarifas, cotizaciones, anticipos, correos, configuracion, usuarios):
         app.register_blueprint(modulo.bp)
 
     @app.before_request

@@ -15,6 +15,7 @@
 {% set generales = [("Cliente", c.cliente.razon_social), ("Fecha", c.fecha|fecha_larga),
                     ("NIT", c.cliente.nit), ("Vigencia", c.validez_dias ~ " días (hasta " ~ (c.vence|fecha) ~ ")"),
                     ("Contacto", c.cliente.contacto_nombre), ("Moneda", c.moneda),
+                    ("Dirección", c.cliente.direccion), ("Ciudad / País", [c.cliente.ciudad, c.cliente.pais]|select|join(' / ')),
                     ("Correo", c.cliente.email), ("Ejecutivo", c.ejecutivo),
                     ("Teléfono", c.cliente.telefono), ("Condición", c.condicion_pago)] %}
 {{ ficha(generales|selectattr(1)|list) }}
@@ -65,7 +66,7 @@
 <div class="bloque">
   <div class="barra">Aceptación de la cotización</div>
   <table class="firmas">
-    <tr><td>Nombre:<span class="linea"></span></td><td>Fecha:<span class="linea"></span></td></tr>
+    <tr><td>Firmante:<span class="linea"></span></td><td>Fecha:<span class="linea"></span></td></tr>
     <tr><td>Empresa:<span class="linea"></span></td><td>Cargo:<span class="linea"></span></td></tr>
     <tr><td colspan="2">Firma / Aprobación:<span class="linea" style="width:40%"></span></td></tr>
   </table>

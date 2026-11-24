@@ -28,7 +28,8 @@
       <a href="{{ url_for('correos.lista') }}" class="{{ 'activo' if ep.startswith('correos') }}">{{ icono('correo') }} Correos
         {% set pend = correos_pendientes() %}{% if pend %}<span class="contador">{{ pend }}</span>{% endif %}</a>
       <div class="nav-sep"></div>
-      <a href="{{ url_for('servicios.lista') }}" class="{{ 'activo' if ep.startswith('servicios') }}">{{ icono('servicios') }} Servicios y tarifas</a>
+      <a href="{{ url_for('servicios.lista') }}" class="{{ 'activo' if ep.startswith('servicios') }}">{{ icono('servicios') }} Servicios</a>
+      <a href="{{ url_for('tarifas.lista') }}" class="{{ 'activo' if ep.startswith('tarifas') }}">{{ icono('anticipo') }} Tarifas</a>
       {% if current_user.es_admin %}
       <a href="{{ url_for('usuarios.lista') }}" class="{{ 'activo' if ep.startswith('usuarios.') and ep != 'usuarios.cuenta' }}">{{ icono('clientes') }} Usuarios</a>
       <a href="{{ url_for('configuracion.empresa') }}" class="{{ 'activo' if ep.startswith('configuracion') }}">{{ icono('ajustes') }} Configuración</a>

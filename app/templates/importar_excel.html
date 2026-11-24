@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block titulo %}Importar desde Excel{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div>
+  <div class="migas"><a href="{{ url_for('configuracion.empresa') }}">Configuración</a></div>
+  <h1>Importar desde Excel</h1><p>Carga tu libro de cotizaciones de AMG (.xlsm o .xlsx).</p>
+</div></div>
+<form method="post" enctype="multipart/form-data" class="tarjeta" style="max-width:820px">
+  {{ csrf() }}
+  <div class="seccion-form">
+    <h3>Qué se importa</h3>
+    <ul class="small" style="margin:0;padding-left:18px;line-height:1.8">
+      <li><strong>Clientes</strong>: con su código CLI-0000, NIT, contacto, correo, ciudad y país.</li>
+      <li><strong>Servicios</strong>: con su código SER-000, categoría y unidad.</li>
+      <li><strong>Tarifas</strong>: por ruta y proveedor, con su vigencia.</li>
+      <li><strong>Historial de cotizaciones</strong> (BD_Cotizaciones y BD_Detalle), opcional. La numeración continúa desde la última.</li>
+    </ul>
+    <p class="ayuda" style="margin-top:10px">Si importas el mismo archivo dos veces, los datos se actualizan sin duplicarse. Las macros del archivo no se ejecutan; solo se leen los datos.</p>
+  </div>
+  <div class="seccion-form"><div class="form-grid">
+    <div class="c-12"><label>Archivo</label><input type="file" name="archivo" accept=".xlsx,.xlsm" required></div>
+    <div class="c-12"><label class="check"><input type="checkbox" name="cotizaciones" value="1" checked> Incluir el historial de cotizaciones</label></div>
+  </div></div>
+  <div class="pie-form"><a class="btn" href="{{ url_for('configuracion.empresa') }}">Cancelar</a><button class="btn btn-primario" type="submit">Importar</button></div>
+</form>
+{% endblock %}

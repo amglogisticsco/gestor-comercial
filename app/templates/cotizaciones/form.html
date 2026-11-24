@@ -34,13 +34,19 @@
     <div class="seccion-form">
       <h3>Datos del servicio <span class="opc" style="text-transform:none;letter-spacing:0;font-weight:400">· solo aparece en el PDF lo que llenes</span></h3>
       <div class="form-grid">
-        <div class="c-3"><label>Origen</label><input type="text" name="origen" value="{{ c.origen or '' }}" placeholder="Bogotá, CO"></div>
-        <div class="c-3"><label>Destino</label><input type="text" name="destino" value="{{ c.destino or '' }}" placeholder="Puerto España, TT"></div>
+        <div class="c-12"><label>Tarifa base <span class="opc">(opcional: llena proveedor, origen, destino y moneda)</span></label>
+          <select name="tarifa_id" id="tarifa-base">
+            <option value="">Sin tarifa base</option>
+            {% for t in tarifas %}<option value="{{ t.id }}" {{ 'selected' if t.id == c.tarifa_id }}>{{ t.etiqueta }}{% if t.valor %} · {{ t.valor|moneda(t.moneda) }}{% endif %}{% if t.estado != 'vigente' %} · ⚠ {{ {'vencida':'vencida','futura':'aún no vigente','sin_valor':'sin valor'}[t.estado] }}{% endif %}</option>{% endfor %}
+          </select>
+          <div class="ayuda" id="aviso-tarifa"></div></div>
+        <div class="c-3"><label>Origen</label><input type="text" name="origen" id="origen" value="{{ c.origen or '' }}" placeholder="Bogotá, CO"></div>
+        <div class="c-3"><label>Destino</label><input type="text" name="destino" id="destino" value="{{ c.destino or '' }}" placeholder="Puerto España, TT"></div>
         <div class="c-4"><label>Ruta</label><input type="text" name="ruta" value="{{ c.ruta or '' }}" placeholder="Bogotá – Cartagena – Puerto España"></div>
         <div class="c-2"><label>Incoterm</label><select name="incoterm">{{ opciones(incoterms, c.incoterm) }}</select></div>
         <div class="c-3"><label>Tipo de carga</label><select name="tipo_carga">{{ opciones(tipos_carga, c.tipo_carga) }}</select></div>
         <div class="c-3"><label>Contenedor</label><input type="text" name="contenedor" list="l-contenedores" value="{{ c.contenedor or '' }}" placeholder="40 HC"></div>
-        <div class="c-3"><label>Naviera / Aerolínea</label><input type="text" name="transportista" list="l-transportistas" value="{{ c.transportista or '' }}"></div>
+        <div class="c-3"><label>Naviera / Aerolínea</label><input type="text" name="transportista" id="transportista" list="l-transportistas" value="{{ c.transportista or '' }}"></div>
         <div class="c-3"><label>Tiempo de tránsito (días)</label><input type="text" name="tiempo_transito" value="{{ c.tiempo_transito or '' }}"></div>
         <div class="c-6"><label>Mercancía</label><input type="text" name="mercancia" value="{{ c.mercancia or '' }}"></div>
         <div class="c-3"><label>Días libres origen</label><input type="text" name="dias_libres_origen" value="{{ c.dias_libres_origen or '' }}"></div>
@@ -52,6 +58,7 @@
         <div class="c-4"><label>Dimensiones</label><input type="text" name="dimensiones" value="{{ c.dimensiones or '' }}" placeholder="120 x 100 x 80 cm"></div>
       </div>
       <datalist id="l-contenedores">{% for x in contenedores %}<option value="{{ x }}">{% endfor %}</datalist>
+      <datalist id="l-unidades">{% for x in unidades %}<option value="{{ x }}">{% endfor %}</datalist>
       <datalist id="l-transportistas">{% for x in transportistas %}<option value="{{ x }}">{% endfor %}</datalist>
     </div>
   </div>
@@ -92,9 +99,10 @@
 
 <template id="fila">
   <tr>
-    <td><input type="hidden" name="item_servicio"><input type="text" name="item_descripcion" placeholder="Descripción del servicio"></td>
+    <td><input type="hidden" name="item_servicio"><input type="hidden" name="item_tarifa"><input type="text" name="item_descripcion" placeholder="Descripción del servicio">
+      <div class="small control-tarifa" style="margin-top:3px"></div></td>
     <td><input type="text" name="item_cantidad" value="1" inputmode="decimal"></td>
-    <td><input type="text" name="item_unidad" value="Servicio"></td>
+    <td><input type="text" name="item_unidad" value="Servicio" list="l-unidades"></td>
     <td><input type="text" name="item_precio" value="0" inputmode="decimal"></td>
     <td><select name="item_iva"><option value="0">No</option><option value="1">Sí</option></select></td>
     <td><input type="text" name="item_obs" placeholder="Aprox."></td>
@@ -110,8 +118,34 @@ const CATALOGO = {
   {% for s in servicios %}{{ s.id }}: {{ {"nombre": s.nombre, "descripcion": s.descripcion, "unidad": s.unidad, "precio": s.precio, "iva": s.aplica_iva}|tojson }},{% endfor %}
 };
 const EXISTENTES = [
-  {% for i in c.items %}{{ {"servicio": i.servicio_id or "", "descripcion": i.descripcion, "cantidad": i.cantidad, "unidad": i.unidad, "precio": i.precio, "iva": i.aplica_iva, "obs": i.observacion or ""}|tojson }},{% endfor %}
+  {% for i in c.items %}{{ {"servicio": i.servicio_id or "", "tarifa": i.tarifa_id or "", "descripcion": i.descripcion, "cantidad": i.cantidad, "unidad": i.unidad, "precio": i.precio, "iva": i.aplica_iva, "obs": i.observacion or ""}|tojson }},{% endfor %}
 ];
+const TARIFAS = [
+  {% for t in tarifas %}{{ {"id": t.id, "codigo": t.codigo, "servicio": t.servicio_id, "origen": t.origen, "destino": t.destino, "proveedor": t.proveedor, "moneda": t.moneda, "valor": t.valor, "estado": t.estado, "hasta": t.vigencia_hasta|fecha if t.vigencia_hasta else ""}|tojson }},{% endfor %}
+];
+const ESTADO_TXT = {vigente: 'vigente', vencida: 'VENCIDA', futura: 'aún no vigente', sin_valor: 'SIN VALOR'};
+const norm = t => (t || '').toUpperCase().replace(/\s+/g, ' ').trim();
+function buscarTarifa(servicioId) {
+  const o = norm(document.getElementById('origen').value), d = norm(document.getElementById('destino').value);
+  const p = norm(document.getElementById('transportista').value);
+  const cands = TARIFAS.filter(t => String(t.servicio) === String(servicioId));
+  const puntaje = t => [t.estado === 'vigente', (o || d) && norm(t.origen) === o && norm(t.destino) === d, p && norm(t.proveedor) === p];
+  cands.sort((a, b) => { const x = puntaje(a), y = puntaje(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return y[i] - x[i]; return 0; });
+  return cands[0] || null;
+}
+function pintarControl(tr) {
+  const el = tr.querySelector('.control-tarifa');
+  const idT = tr.querySelector('[name=item_tarifa]').value, idS = tr.querySelector('[name=item_servicio]').value;
+  const t = TARIFAS.find(x => String(x.id) === String(idT));
+  if (!idS) { el.textContent = ''; return; }
+  if (!t) { el.innerHTML = '<span style="color:var(--alerta)">Sin tarifa registrada: digita el valor</span>'; return; }
+  const moneda = document.getElementById('moneda').value;
+  const avisos = [];
+  if (t.estado !== 'vigente') avisos.push('tarifa ' + ESTADO_TXT[t.estado] + (t.hasta ? ' (hasta ' + t.hasta + ')' : ''));
+  if (t.moneda !== moneda) avisos.push('la tarifa está en ' + t.moneda);
+  el.innerHTML = '<span class="muted">' + t.codigo + (t.proveedor ? ' · ' + t.proveedor : '') + '</span>' +
+    (avisos.length ? ' <span style="color:var(--error);font-weight:600">· ' + avisos.join(' · ') + '</span>' : ' <span style="color:var(--ok)">✓</span>');
+}
 const cuerpo = document.getElementById('items');
 
 function aNumero(v) {
@@ -146,16 +180,19 @@ function agregarFila(d) {
     tr.querySelector('[name=item_precio]').value = d.precio || 0;
     tr.querySelector('[name=item_iva]').value = d.iva ? '1' : '0';
     tr.querySelector('[name=item_obs]').value = d.obs || '';
+    tr.querySelector('[name=item_tarifa]').value = d.tarifa || '';
   }
   tr.querySelector('.quitar').onclick = () => { tr.remove(); recalcular(); };
   tr.querySelectorAll('input,select').forEach(el => el.addEventListener('input', recalcular));
-  cuerpo.appendChild(tr); recalcular();
+  cuerpo.appendChild(tr); pintarControl(tr); recalcular();
   if (!d) tr.querySelector('[name=item_descripcion]').focus();
 }
 document.getElementById('agregar-servicio').addEventListener('change', e => {
   const s = CATALOGO[e.target.value]; if (!s) return;
-  agregarFila({servicio: e.target.value, descripcion: s.descripcion ? s.nombre + ' – ' + s.descripcion : s.nombre,
-               cantidad: 1, unidad: s.unidad, precio: s.precio, iva: s.iva});
+  const t = buscarTarifa(e.target.value);
+  agregarFila({servicio: e.target.value, tarifa: t ? t.id : '', descripcion: s.nombre,
+               cantidad: 1, unidad: s.unidad, precio: t && t.valor ? t.valor : s.precio, iva: s.iva,
+               obs: t && t.estado !== 'vigente' ? 'Sujeto a confirmación' : ''});
   e.target.value = '';
 });
 document.getElementById('iva_pct').addEventListener('input', recalcular);
@@ -167,7 +204,25 @@ document.getElementById('cliente').addEventListener('change', e => {
   document.getElementById('aviso-iva').textContent = exterior ? 'Cliente en ' + op.dataset.pais + ': IVA 0 %' : '';
   recalcular();
 });
-document.getElementById('moneda').addEventListener('change', recalcular);
+document.getElementById('moneda').addEventListener('change', () => { recalcular(); cuerpo.querySelectorAll('tr').forEach(pintarControl); });
+document.getElementById('tarifa-base').addEventListener('change', e => {
+  const t = TARIFAS.find(x => String(x.id) === e.target.value);
+  const aviso = document.getElementById('aviso-tarifa');
+  if (!t) { aviso.textContent = ''; return; }
+  document.getElementById('origen').value = t.origen;
+  document.getElementById('destino').value = t.destino;
+  document.getElementById('transportista').value = t.proveedor;
+  document.getElementById('moneda').value = t.moneda;
+  // agrega el servicio de la tarifa si aún no está en la lista
+  const ya = [...cuerpo.querySelectorAll('[name=item_servicio]')].some(i => String(i.value) === String(t.servicio));
+  if (!ya) {
+    cuerpo.querySelectorAll('tr').forEach(tr => { if (!tr.querySelector('[name=item_descripcion]').value.trim()) tr.remove(); });
+    const s = CATALOGO[t.servicio] || {};
+    agregarFila({servicio: t.servicio, tarifa: t.id, descripcion: s.nombre || t.codigo, cantidad: 1, unidad: s.unidad, precio: t.valor, iva: s.iva});
+  }
+  aviso.innerHTML = t.estado === 'vigente' ? '' : '<span style="color:var(--error);font-weight:600">Atención: esta tarifa está ' + ESTADO_TXT[t.estado] + '.</span>';
+  recalcular();
+});
 EXISTENTES.length ? EXISTENTES.forEach(agregarFila) : agregarFila({cantidad: 1, iva: false});
 </script>
 {% endblock %}

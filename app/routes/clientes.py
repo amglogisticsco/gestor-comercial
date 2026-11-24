@@ -5,7 +5,7 @@ from flask import Blueprint, Response, flash, redirect, render_template, request
 from sqlalchemy import or_
 
 from .. import db
-from ..models import Cliente
+from ..models import Cliente, asignar_codigos
 from . import a_fecha, obtener
 
 bp = Blueprint("clientes", __name__, url_prefix="/clientes")
@@ -20,7 +20,7 @@ def lista():
     consulta = Cliente.query
     if q:
         patron = f"%{q}%"
-        consulta = consulta.filter(or_(Cliente.razon_social.ilike(patron), Cliente.nit.ilike(patron),
+        consulta = consulta.filter(or_(Cliente.razon_social.ilike(patron), Cliente.nit.ilike(patron), Cliente.codigo.ilike(patron),
                                        Cliente.contacto_nombre.ilike(patron), Cliente.email.ilike(patron),
                                        Cliente.ciudad.ilike(patron)))
     if request.args.get("inactivos") != "1":
@@ -45,8 +45,9 @@ def nuevo():
     cliente = Cliente()
     if request.method == "POST" and _guardar(cliente):
         db.session.add(cliente)
+        asignar_codigos()
         db.session.commit()
-        flash("Cliente creado.", "ok")
+        flash(f"Cliente {cliente.codigo} creado.", "ok")
         return redirect(url_for("clientes.ver", ident=cliente.id))
     return render_template("clientes/form.html", cliente=cliente)
 

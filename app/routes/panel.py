@@ -25,7 +25,10 @@ def inicio():
     return render_template(
         "panel.html",
         kpi={
-            "cotizado_mes": sum(c.total for c in del_mes if c.moneda == "COP"),
+            "cotizado_mes_usd": sum(c.total for c in del_mes if c.moneda == "USD"),
+            "cotizado_mes_cop": sum(c.total for c in del_mes if c.moneda == "COP"),
+            "aceptadas": sum(1 for c in cotizaciones if c.estado == "aprobada"),
+            "decididas": sum(1 for c in cotizaciones if c.estado != "borrador"),
             "cotizaciones_mes": len(del_mes),
             "aprobadas_mes": len(aprobadas_mes),
             "en_espera": len(en_espera),

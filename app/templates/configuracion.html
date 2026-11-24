@@ -2,7 +2,8 @@
 {% from "_macros.html" import csrf with context %}
 {% block titulo %}Configuración{% endblock %}
 {% block contenido %}
-<div class="encabezado"><div><h1>Configuración</h1><p>Datos que aparecen en tus cotizaciones, solicitudes de fondos y correos.</p></div></div>
+<div class="encabezado"><div><h1>Configuración</h1><p>Datos que aparecen en tus cotizaciones, solicitudes de fondos y correos.</p></div>
+  <a class="btn" href="{{ url_for('configuracion.importar') }}">Importar desde Excel</a></div>
 <form method="post" enctype="multipart/form-data">
   {{ csrf() }}
   <div class="tarjeta">
@@ -26,6 +27,8 @@
       <div class="c-3"><label>Moneda por defecto</label><select name="moneda">{% for m in monedas %}<option {{ 'selected' if m == e.moneda }}>{{ m }}</option>{% endfor %}</select></div>
       <div class="c-3"><label>IVA (%) <span class="opc">· clientes en Colombia</span></label><input type="text" name="iva_pct" value="{{ e.iva_pct|numero }}"></div>
       <div class="c-3"><label>Validez (días)</label><input type="number" name="validez_dias" value="{{ e.validez_dias }}" min="1"></div>
+      <div class="c-3"><label>Cotización desde N.º</label><input type="number" name="cot_siguiente" value="{{ e.cot_siguiente or 1 }}" min="1">
+        <div class="ayuda">Para continuar tu numeración (ej.: 5 → COT-0005).</div></div>
       <input type="hidden" name="anticipo_pct" value="{{ e.anticipo_pct|numero }}">
       <div class="c-12"><label>Nota de tarifas</label><textarea name="nota_tarifas" rows="2">{{ e.nota_tarifas }}</textarea></div>
       <div class="c-12"><label>Condiciones y observaciones <span class="opc">(una por línea)</span></label><textarea name="condiciones" rows="8">{{ e.condiciones }}</textarea></div>

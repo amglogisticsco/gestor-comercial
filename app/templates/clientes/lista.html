@@ -26,7 +26,7 @@
       <tr>
         <td><div class="fila-persona"><div class="avatar">{{ iniciales(c.razon_social) }}</div>
           <div><a class="principal-celda" href="{{ url_for('clientes.ver', ident=c.id) }}">{{ c.razon_social }}</a>
-          <div class="small muted">{% if c.nit %}NIT {{ c.nit }}{% endif %}{% if not c.activo %} · Inactivo{% endif %}</div></div></div></td>
+          <div class="small muted">{{ c.codigo }}{% if c.nit %} · NIT {{ c.nit }}{% endif %}{% if not c.activo %} · Inactivo{% endif %}</div></div></div></td>
         <td>{{ c.contacto_nombre or '—' }}{% if c.cargo %}<div class="small muted">{{ c.cargo }}</div>{% endif %}</td>
         <td>{{ c.email or '—' }}</td><td>{{ c.telefono or '—' }}</td><td>{{ c.ciudad or '—' }}</td>
       </tr>

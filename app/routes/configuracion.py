@@ -29,6 +29,7 @@ def empresa():
             color = request.form.get(campo, "").strip()
             setattr(emp, campo, color if color.startswith("#") and len(color) in (4, 7) else defecto)
         emp.cumple_auto_envio = request.form.get("cumple_auto_envio") == "1"
+        emp.cot_siguiente = max(1, request.form.get("cot_siguiente", type=int) or 1)
 
         logo = request.files.get("logo")
         if logo and logo.filename:
@@ -59,3 +60,28 @@ def empresa():
 def logo():
     emp = Empresa.actual()
     return send_from_directory(current_app.config["UPLOAD_DIR"], emp.logo) if emp.logo else ("", 404)
+
+
+@bp.route("/importar", methods=["GET", "POST"])
+@solo_admin
+def importar():
+    if request.method == "POST":
+        archivo = request.files.get("archivo")
+        if not archivo or Path(archivo.filename or "").suffix.lower() not in (".xlsx", ".xlsm"):
+            flash("Selecciona un archivo .xlsx o .xlsm.", "error")
+            return redirect(request.url)
+        from ..services.importar_excel import importar as importar_libro
+
+        try:
+            r = importar_libro(archivo.stream, incluir_cotizaciones=request.form.get("cotizaciones") == "1")
+        except Exception as exc:  # archivo dañado o con otro formato
+            db.session.rollback()
+            current_app.logger.exception("Error importando Excel")
+            flash(f"No se pudo leer el archivo: {exc}", "error")
+            return redirect(request.url)
+        flash(f"Importación lista: {r['clientes']} clientes, {r['servicios']} servicios, {r['tarifas']} tarifas y "
+              f"{r['cotizaciones']} cotizaciones nuevas (lo existente se actualizó).", "ok")
+        if r["omitidas"]:
+            flash("Omitidas: " + ", ".join(r["omitidas"][:10]), "error")
+        return redirect(url_for("tarifas.lista"))
+    return render_template("importar_excel.html")

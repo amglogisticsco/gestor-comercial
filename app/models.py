@@ -12,19 +12,20 @@ from . import db, login_manager
 ESTADOS_COTIZACION = {
     "borrador": "Borrador",
     "enviada": "Enviada",
-    "aprobada": "Aprobada",
+    "aprobada": "Aceptada",
     "rechazada": "Rechazada",
     "vencida": "Vencida",
 }
 ROLES = {"admin": "Administrador", "usuario": "Usuario"}
 ESTADOS_ANTICIPO = {"pendiente": "Pendiente", "enviada": "Enviada", "pagada": "Pagada", "anulada": "Anulada"}
 TIPOS_OPERACION = ["Importación", "Exportación", "Zona Franca", "OTM", "DTA", "Proceso de aduana", "Etiquetado", "Nacional"]
-MODALIDADES = ["Aérea", "Marítima FCL", "Marítima LCL", "Terrestre", "Multimodal"]
+MODALIDADES = ["Marítimo", "Aéreo", "Terrestre", "Multimodal"]
 INCOTERMS = ["EXW", "FCA", "FAS", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP"]
 MONEDAS = ["USD", "COP", "EUR"]
-CONDICIONES_PAGO = ["Prepago", "Crédito"]
-TIPOS_CARGA = ["General", "Refrigerada", "Perecedera", "Peligrosa", "Sobredimensionada"]
-CONTENEDORES = ["20 ST", "40 ST", "40 HC", "LCL", "Carga suelta"]
+CONDICIONES_PAGO = ["Prepago", "Contado", "Crédito 30 días", "Crédito 60 días"]
+TIPOS_CARGA = ["Carga general", "Carga suelta", "Perecedera", "Refrigerada", "Peligrosa", "Otra"]
+CONTENEDORES = ["20' ST", "20' Reefer", "40' ST", "40' HC", "40' Reefer", "45' HC", "LCL", "FCL", "No aplica"]
+UNIDADES = ["Contenedor", "Kg", "CBM", "Pallet", "Viaje", "Servicio", "Día", "Unidad", "Documento", "Trámite"]
 TRANSPORTISTAS = ["Maersk", "Hapag-Lloyd", "COSCO", "MSC", "CMA CGM", "Copa", "LATAM", "Avianca", "Air Cargo Pack"]
 GRUPOS_ANTICIPO = ["Intermediación aduanera", "Gastos aerolínea / puerto", "Otros gastos"]
 
@@ -85,6 +86,7 @@ class Empresa(db.Model):
     cumple_auto_envio = db.Column(db.Boolean, default=False)
     cumple_asunto = db.Column(db.String(200), default="")
     cumple_mensaje = db.Column(db.Text, default="")
+    cot_siguiente = db.Column(db.Integer, default=1)  # para continuar la numeración del Excel
 
     @staticmethod
     def actual():
@@ -98,6 +100,7 @@ class Empresa(db.Model):
 
 class Cliente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(20), default="")  # CLI-0001
     razon_social = db.Column(db.String(160), nullable=False)
     nit = db.Column(db.String(40), default="")
     contacto_nombre = db.Column(db.String(120), default="")
@@ -152,13 +155,81 @@ class Cliente(db.Model):
 
 class Servicio(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(20), default="")  # SER-001
     nombre = db.Column(db.String(160), nullable=False)
+    categoria = db.Column(db.String(60), default="")
     descripcion = db.Column(db.String(300), default="")
     unidad = db.Column(db.String(40), default="Servicio")
     precio = db.Column(db.Float, default=0)
     aplica_iva = db.Column(db.Boolean, default=False)
     grupo = db.Column(db.String(40), default="Otros gastos")  # grupo en la solicitud de fondos
     activo = db.Column(db.Boolean, default=True)
+
+
+class Tarifa(db.Model):
+    """Tarifa por servicio, ruta y proveedor, con vigencia (hoja "Tarifas" del Excel)."""
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(20), default="")  # TAR-0001
+    servicio_id = db.Column(db.Integer, db.ForeignKey("servicio.id"), nullable=False)
+    origen = db.Column(db.String(120), default="")
+    destino = db.Column(db.String(120), default="")
+    proveedor = db.Column(db.String(120), default="")
+    moneda = db.Column(db.String(3), default="USD")
+    valor = db.Column(db.Float, default=0)
+    vigencia_desde = db.Column(db.Date, nullable=True)
+    vigencia_hasta = db.Column(db.Date, nullable=True)
+    observaciones = db.Column(db.String(300), default="")
+    activo = db.Column(db.Boolean, default=True)
+
+    servicio = db.relationship("Servicio")
+
+    @property
+    def estado(self):
+        """vigente | vencida | futura | sin_valor | inactiva"""
+        hoy = date.today()
+        if not self.activo:
+            return "inactiva"
+        if not self.valor:
+            return "sin_valor"
+        if self.vigencia_hasta and self.vigencia_hasta < hoy:
+            return "vencida"
+        if self.vigencia_desde and self.vigencia_desde > hoy:
+            return "futura"
+        return "vigente"
+
+    @property
+    def ruta(self):
+        return " → ".join(p for p in (self.origen, self.destino) if p)
+
+    @property
+    def etiqueta(self):
+        partes = [self.codigo, self.servicio.nombre if self.servicio else "", self.ruta, self.proveedor]
+        return " · ".join(p for p in partes if p)
+
+
+ESTADOS_TARIFA = {"vigente": "Vigente", "vencida": "Vencida", "futura": "Aún no vigente",
+                  "sin_valor": "Sin valor", "inactiva": "Inactiva"}
+
+
+def _norm(texto):
+    return " ".join((texto or "").upper().split())
+
+
+def buscar_tarifa(servicio_id, origen="", destino="", proveedor=""):
+    """La mejor tarifa activa para un servicio: misma ruta y proveedor > misma ruta > cualquiera.
+    Prefiere las vigentes y con valor."""
+    candidatas = Tarifa.query.filter_by(servicio_id=servicio_id, activo=True).all()
+    if not candidatas:
+        return None
+
+    def puntaje(t):
+        return (
+            t.estado == "vigente",
+            _norm(t.origen) == _norm(origen) and _norm(t.destino) == _norm(destino) and bool(origen or destino),
+            bool(proveedor) and _norm(t.proveedor) == _norm(proveedor),
+            t.vigencia_hasta or date.min,
+        )
+    return max(candidatas, key=puntaje)
 
 
 class Cotizacion(db.Model):
@@ -169,6 +240,7 @@ class Cotizacion(db.Model):
     validez_dias = db.Column(db.Integer, default=15)
     estado = db.Column(db.String(20), default="borrador")
     ejecutivo = db.Column(db.String(120), default="")
+    tarifa_id = db.Column(db.Integer, db.ForeignKey("tarifa.id"), nullable=True)  # tarifa base
     condicion_pago = db.Column(db.String(30), default="")
     tipo_operacion = db.Column(db.String(30), default="")
     modalidad = db.Column(db.String(30), default="")
@@ -196,6 +268,7 @@ class Cotizacion(db.Model):
     creado = db.Column(db.DateTime, default=datetime.now)
 
     cliente = db.relationship("Cliente", back_populates="cotizaciones")
+    tarifa_base = db.relationship("Tarifa")
     items = db.relationship(
         "ItemCotizacion", back_populates="cotizacion", cascade="all, delete-orphan", order_by="ItemCotizacion.orden"
     )
@@ -277,8 +350,10 @@ class ItemCotizacion(db.Model):
     precio = db.Column(db.Float, default=0)
     aplica_iva = db.Column(db.Boolean, default=False)
     observacion = db.Column(db.String(120), default="")
+    tarifa_id = db.Column(db.Integer, db.ForeignKey("tarifa.id"), nullable=True)
 
     cotizacion = db.relationship("Cotizacion", back_populates="items")
+    tarifa = db.relationship("Tarifa")
 
     @property
     def total(self):
@@ -416,12 +491,21 @@ class Correo(db.Model):
         return None
 
 
-def siguiente_numero(modelo, prefijo):
-    anio = date.today().year
-    base = f"{prefijo}-{anio}-"
-    ultimo = modelo.query.filter(modelo.numero.like(f"{base}%")).order_by(modelo.numero.desc()).first()
-    consecutivo = int(ultimo.numero.rsplit("-", 1)[1]) + 1 if ultimo else 1
-    return f"{base}{consecutivo:04d}"
+def siguiente_numero(modelo, prefijo, digitos=4, por_anio=True, minimo=1, campo="numero"):
+    """Consecutivo siguiente: COT-0001 (global) o SF-2026-0001 (por año)."""
+    columna = getattr(modelo, campo)
+    base = f"{prefijo}-{date.today().year}-" if por_anio else f"{prefijo}-"
+    patron = rf"^{base}(\d+)$"
+    import re
+
+    numeros = [int(m.group(1)) for (valor,) in db.session.query(columna).filter(columna.like(f"{base}%"))
+               if valor and (m := re.match(patron, valor))]
+    consecutivo = max([minimo - 1, *numeros]) + 1
+    return f"{base}{consecutivo:0{digitos}d}"
+
+
+def numero_cotizacion():
+    return siguiente_numero(Cotizacion, "COT", por_anio=False, minimo=Empresa.actual().cot_siguiente or 1)
 
 
 # ---------------------------------------------------------------------------
@@ -551,6 +635,63 @@ def asegurar_columnas():
                 conexion.execute(text(f'ALTER TABLE "{tabla.name}" ADD COLUMN "{columna.name}" {tipo}{defecto}'))
 
 
+# Servicios de la hoja "Servicios" del Excel de AMG: (código, nombre, categoría, unidad, descripción, IVA, grupo)
+SERVICIOS_AMG = [
+    ("SER-001", "Flete marítimo", "Marítimo", "Contenedor", "Transporte marítimo internacional", False, PU),
+    ("SER-002", "Flete aéreo", "Aéreo", "Kg", "Transporte aéreo internacional", False, PU),
+    ("SER-003", "Transporte terrestre", "Terrestre", "Viaje", "Transporte nacional", False, PU),
+    ("SER-004", "Manejo / documentación", "Logística", "Servicio", "Gastos de manejo y documentación", True, OG),
+    ("SER-005", "Agenciamiento aduanero", "Aduanas", "Servicio", "Servicios de aduana", True, IA),
+    ("SER-006", "Almacenamiento", "Almacenamiento", "Día", "Almacenamiento de mercancía", False, PU),
+    ("SER-007", "Etiquetado SIC", "Cumplimiento", "Unidad", "Etiquetado para cumplimiento", True, OG),
+    ("SER-008", "Certificado de origen", "Comercio exterior", "Documento", "Elaboración de criterios/certificados", True, IA),
+    ("SER-009", "Cargue y descargue", "Procesos logísticos", "Servicio", "Llenado y vaciado de contenedores o camiones", False, PU),
+    ("SER-010", "Manejos en puerto", "Gastos portuarios", "Servicio", "Manejos de movilización y bodegajes", True, PU),
+    ("SER-011", "Pólizas de seguro", "Logística", "Documento", "Póliza de seguro", False, OG),
+    ("SER-012", "Revisión antinarcóticos", "Policía antinarcóticos", "Servicio", "Revisión por parte de la Policía Antinarcóticos", False, PU),
+    ("SER-013", "Reconocimiento de mercancía", "Agencia de aduanas", "Servicio", "Inspección previa a la exportación", True, IA),
+    ("SER-014", "Acompañamiento inspección DIAN", "Agencia de aduanas", "Servicio", "Inspección física DIAN", True, IA),
+    ("SER-015", "Acompañamiento inspección narcóticos", "Agencia de aduanas", "Servicio", "Inspección física Policía Antinarcóticos", True, IA),
+    ("SER-016", "Fuel surcharge", "Aerolínea", "Servicio", "Recargo por combustible", False, PU),
+    ("SER-017", "Security surcharge", "Aerolínea", "Servicio", "Recargo por seguridad", False, PU),
+    ("SER-018", "Emisión guía aérea", "Agente de carga", "Servicio", "Elaboración de la guía aérea", False, PU),
+    ("SER-019", "Recolección", "Agente de carga", "Servicio", "Transporte de recogida", False, PU),
+    ("SER-020", "Manejos origen", "Agente de carga", "Servicio", "Manejos en origen", False, PU),
+    ("SER-021", "Collect fee", "Aerolínea", "Servicio", "Manejos aerolínea", False, PU),
+    ("SER-022", "Trámites aduana", "Agencia de aduanas", "Servicio", "Trámites de aduana en origen", False, IA),
+    ("SER-023", "Gastos destino", "Aerolínea", "Servicio", "Manejos aerolínea en destino", False, PU),
+]
+
+
+def _clave(texto):
+    import unicodedata
+    sin_tildes = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode()
+    return " ".join(sin_tildes.lower().split())
+
+
+def asignar_codigos():
+    """Da código a clientes (CLI-0001), servicios (SER-001) y tarifas (TAR-0001) que no lo tengan."""
+    for modelo, prefijo, digitos in ((Cliente, "CLI", 4), (Servicio, "SER", 3), (Tarifa, "TAR", 4)):
+        for objeto in modelo.query.filter((modelo.codigo == "") | (modelo.codigo.is_(None))).order_by(modelo.id):
+            objeto.codigo = siguiente_numero(modelo, prefijo, digitos=digitos, por_anio=False, campo="codigo")
+            db.session.flush()
+
+
+def asegurar_servicios_amg():
+    existentes = {_clave(s.nombre): s for s in Servicio.query.all()}
+    codigos = {s.codigo for s in existentes.values() if s.codigo}
+    for codigo, nombre, categoria, unidad, descripcion, iva, grupo in SERVICIOS_AMG:
+        servicio = existentes.get(_clave(nombre))
+        if servicio is None:
+            servicio = Servicio(nombre=nombre, unidad=unidad, descripcion=descripcion, aplica_iva=iva, grupo=grupo)
+            db.session.add(servicio)
+        if not servicio.codigo and codigo not in codigos:
+            servicio.codigo = codigo
+            codigos.add(codigo)
+        servicio.categoria = servicio.categoria or categoria
+    db.session.flush()
+
+
 def sembrar_datos():
     # Si hay usuarios pero ningún administrador (bases anteriores), el primero pasa a serlo.
     if Usuario.query.count() and not Usuario.query.filter_by(rol="admin").count():
@@ -572,4 +713,7 @@ def sembrar_datos():
     if Servicio.query.count() == 0:
         for nombre, unidad, iva, grupo in CATALOGO_INICIAL:
             db.session.add(Servicio(nombre=nombre, unidad=unidad, aplica_iva=iva, grupo=grupo))
+        db.session.flush()
+    asegurar_servicios_amg()
+    asignar_codigos()
     db.session.commit()

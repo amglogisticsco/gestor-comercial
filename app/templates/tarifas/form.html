@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, csrf with context %}
+{% block titulo %}{{ t.codigo or 'Nueva tarifa' }}{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div><div class="migas"><a href="{{ url_for('tarifas.lista') }}">Tarifas</a></div>
+    <h1>{{ 'Tarifa ' ~ t.codigo if t.id else 'Nueva tarifa' }}</h1></div>
+  {% if t.id %}<form class="en-linea" method="post" action="{{ url_for('tarifas.duplicar', ident=t.id) }}">{{ csrf() }}
+    <button class="btn" type="submit">{{ icono('copiar') }} Duplicar (nueva vigencia)</button></form>{% endif %}
+</div>
+<form method="post" class="tarjeta" style="max-width:900px">
+  {{ csrf() }}
+  <div class="seccion-form"><div class="form-grid">
+    <div class="c-6"><label>Servicio</label>
+      <select name="servicio_id" required><option value="">Selecciona…</option>
+        {% for s in servicios %}<option value="{{ s.id }}" {{ 'selected' if s.id == t.servicio_id }}>{{ s.codigo }} · {{ s.nombre }}</option>{% endfor %}
+      </select></div>
+    <div class="c-6"><label>Proveedor <span class="opc">(naviera, aerolínea, transportador…)</span></label><input type="text" name="proveedor" value="{{ t.proveedor or '' }}"></div>
+    <div class="c-6"><label>Origen</label><input type="text" name="origen" value="{{ t.origen or '' }}" placeholder="CARTAGENA"></div>
+    <div class="c-6"><label>Destino</label><input type="text" name="destino" value="{{ t.destino or '' }}" placeholder="TRINIDAD Y TOBAGO"></div>
+    <div class="c-3"><label>Moneda</label><select name="moneda">{% for m in monedas %}<option {{ 'selected' if m == t.moneda }}>{{ m }}</option>{% endfor %}</select></div>
+    <div class="c-3"><label>Tarifa</label><input type="text" name="valor" value="{{ t.valor|crudo }}" inputmode="decimal" required></div>
+    <div class="c-3"><label>Vigente desde</label><input type="date" name="vigencia_desde" value="{{ t.vigencia_desde.isoformat() if t.vigencia_desde }}"></div>
+    <div class="c-3"><label>Vigente hasta</label><input type="date" name="vigencia_hasta" value="{{ t.vigencia_hasta.isoformat() if t.vigencia_hasta }}"></div>
+    <div class="c-9"><label>Observaciones</label><input type="text" name="observaciones" value="{{ t.observaciones or '' }}"></div>
+    <div class="c-3"><label>Estado</label><select name="activo"><option value="1" {{ 'selected' if t.activo }}>Activa</option><option value="0" {{ 'selected' if not t.activo }}>Inactiva</option></select></div>
+  </div></div>
+  <div class="pie-form"><a class="btn" href="{{ url_for('tarifas.lista') }}">Cancelar</a><button class="btn btn-primario" type="submit">Guardar tarifa</button></div>
+</form>
+{% endblock %}

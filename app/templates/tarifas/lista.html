@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono with context %}
+{% set clases = {'vigente': 'b-aprobada', 'vencida': 'b-error', 'futura': 'b-enviada', 'sin_valor': 'b-pendiente', 'inactiva': 'b-borrador'} %}
+{% block titulo %}Tarifas{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div><h1>Tarifas</h1><p>Valores por servicio, ruta y proveedor. Al cotizar, cada servicio toma la tarifa vigente de la ruta.</p></div>
+  <a class="btn btn-primario" href="{{ url_for('tarifas.editar') }}">{{ icono('mas') }} Nueva tarifa</a>
+</div>
+<div class="pestanas">
+  <a href="{{ url_for('tarifas.lista', q=q) }}" class="{{ 'activo' if not estado }}">Todas</a>
+  {% for k, v in estados.items() if conteo[k] %}<a href="{{ url_for('tarifas.lista', estado=k, q=q) }}" class="{{ 'activo' if estado == k }}">{{ v }} <span class="small muted">{{ conteo[k] }}</span></a>{% endfor %}
+</div>
+<div class="tarjeta">
+  <div class="tarjeta-cab">
+    <form class="buscador" method="get"><input type="hidden" name="estado" value="{{ estado }}">
+      <input type="search" name="q" value="{{ q }}" placeholder="Buscar por código, servicio, origen, destino o proveedor">
+      <button class="btn" type="submit">Buscar</button></form>
+  </div>
+  {% if tarifas %}
+  <div class="tabla-envoltura"><table class="tabla">
+    <thead><tr><th>Código</th><th>Servicio</th><th>Ruta</th><th>Proveedor</th><th class="der">Tarifa</th><th>Vigencia</th><th>Estado</th></tr></thead>
+    <tbody>{% for t in tarifas %}
+      <tr>
+        <td><a class="principal-celda" href="{{ url_for('tarifas.editar', ident=t.id) }}">{{ t.codigo }}</a></td>
+        <td>{{ t.servicio.nombre }}<div class="small muted">{{ t.servicio.codigo }}</div></td>
+        <td class="small">{{ t.ruta or '—' }}</td>
+        <td class="small">{{ t.proveedor or '—' }}</td>
+        <td class="der num">{{ t.valor|moneda(t.moneda) if t.valor else '—' }}</td>
+        <td class="small">{{ t.vigencia_desde|fecha if t.vigencia_desde else '' }}{% if t.vigencia_desde or t.vigencia_hasta %} – {% endif %}{{ t.vigencia_hasta|fecha if t.vigencia_hasta else '' }}</td>
+        <td><span class="badge {{ clases[t.estado] }}">{{ estados[t.estado] }}</span></td>
+      </tr>
+    {% endfor %}</tbody></table></div>
+  {% else %}
+  <div class="vacio">No hay tarifas{% if q or estado %} con ese filtro{% endif %}. <a href="{{ url_for('tarifas.editar') }}">Crea una</a>{% if current_user.es_admin %} o <a href="{{ url_for('configuracion.importar') }}">impórtalas desde tu Excel</a>{% endif %}.</div>
+  {% endif %}
+</div>
+{% endblock %}

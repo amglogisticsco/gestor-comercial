@@ -6,7 +6,7 @@ from flask_login import current_user
 from .. import db
 from ..models import (CONDICIONES_PAGO, CONTENEDORES, ESTADOS_COTIZACION, INCOTERMS, MODALIDADES, MONEDAS,
                       TIPOS_CARGA, TIPOS_OPERACION, TRANSPORTISTAS, Cliente, Cotizacion, Empresa, ItemCotizacion,
-                      Servicio, siguiente_numero)
+                      Servicio, Tarifa, UNIDADES, numero_cotizacion)
 from ..services import correo as servicio_correo
 from ..services import pdf
 from . import a_fecha, a_numero, obtener
@@ -34,6 +34,8 @@ def _contexto_form(cot):
         "c": cot,
         "clientes": Cliente.query.filter_by(activo=True).order_by(Cliente.razon_social).all(),
         "servicios": Servicio.query.filter_by(activo=True).order_by(Servicio.nombre).all(),
+        "tarifas": Tarifa.query.filter_by(activo=True).order_by(Tarifa.codigo).all(),
+        "unidades": UNIDADES,
         "tipos": TIPOS_OPERACION, "modalidades": MODALIDADES, "incoterms": INCOTERMS, "monedas": MONEDAS,
         "condiciones_pago": CONDICIONES_PAGO, "tipos_carga": TIPOS_CARGA, "contenedores": CONTENEDORES,
         "transportistas": sorted(set(TRANSPORTISTAS) | {t for (t,) in db.session.query(Cotizacion.transportista)
@@ -53,6 +55,8 @@ def _guardar(cot):
     cot.iva_pct = a_numero(request.form.get("iva_pct"), 0)
     for campo in CAMPOS_TEXTO:
         setattr(cot, campo, request.form.get(campo, "").strip())
+    tarifa_base = db.session.get(Tarifa, request.form.get("tarifa_id", type=int) or 0)
+    cot.tarifa_id = tarifa_base.id if tarifa_base else None
 
     descripciones = request.form.getlist("item_descripcion")
     cantidades = request.form.getlist("item_cantidad")
@@ -61,6 +65,7 @@ def _guardar(cot):
     ivas = request.form.getlist("item_iva")
     servicios = request.form.getlist("item_servicio")
     observaciones = request.form.getlist("item_obs")
+    tarifas_item = request.form.getlist("item_tarifa")
     nuevos = []
     for i, descripcion in enumerate(descripciones):
         if not descripcion.strip():
@@ -73,6 +78,7 @@ def _guardar(cot):
             aplica_iva=(ivas[i] if i < len(ivas) else "0") == "1",
             observacion=(observaciones[i] if i < len(observaciones) else "").strip(),
             servicio_id=int(servicios[i]) if i < len(servicios) and servicios[i].isdigit() else None,
+            tarifa_id=int(tarifas_item[i]) if i < len(tarifas_item) and tarifas_item[i].isdigit() else None,
         ))
     if not nuevos:
         flash("Agrega al menos un servicio a la cotización.", "error")
@@ -92,7 +98,7 @@ def nueva():
         cot.iva_pct = 0
     if request.method == "POST":
         if _guardar(cot):
-            cot.numero = siguiente_numero(Cotizacion, "COT")
+            cot.numero = numero_cotizacion()
             db.session.add(cot)
             db.session.commit()
             flash(f"Cotización {cot.numero} creada.", "ok")
@@ -142,13 +148,14 @@ def cambiar_estado(ident):
 @bp.route("/<int:ident>/duplicar", methods=["POST"])
 def duplicar(ident):
     origen = obtener(Cotizacion, ident)
-    copia = Cotizacion(numero=siguiente_numero(Cotizacion, "COT"), cliente_id=origen.cliente_id, fecha=date.today(),
+    copia = Cotizacion(numero=numero_cotizacion(), cliente_id=origen.cliente_id, fecha=date.today(),
                        validez_dias=origen.validez_dias, moneda=origen.moneda, iva_pct=origen.iva_pct)
     for campo in CAMPOS_TEXTO:
         setattr(copia, campo, getattr(origen, campo))
+    copia.tarifa_id = origen.tarifa_id
     copia.items = [ItemCotizacion(orden=i.orden, descripcion=i.descripcion, cantidad=i.cantidad, unidad=i.unidad,
                                   precio=i.precio, aplica_iva=i.aplica_iva, servicio_id=i.servicio_id,
-                                  observacion=i.observacion)
+                                  observacion=i.observacion, tarifa_id=i.tarifa_id)
                    for i in origen.items]
     db.session.add(copia)
     db.session.commit()

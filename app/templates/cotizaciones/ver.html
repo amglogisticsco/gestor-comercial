@@ -23,7 +23,7 @@
       <div class="tabla-envoltura"><table class="tabla">
         <thead><tr><th>Descripción</th><th class="der">Cant.</th><th>Unidad</th><th class="der">Precio</th><th class="der">Total</th></tr></thead>
         <tbody>{% for i in c.items %}
-          <tr><td>{{ i.descripcion }}{% if i.observacion or i.aplica_iva %}<div class="small muted">{{ [i.observacion, 'Gravado IVA' if i.aplica_iva]|select|join(' · ') }}</div>{% endif %}</td>
+          <tr><td>{{ i.descripcion }}{% if i.observacion or i.aplica_iva or i.tarifa %}<div class="small muted">{{ [i.tarifa.codigo if i.tarifa, i.observacion, 'Gravado IVA' if i.aplica_iva]|select|join(' · ') }}</div>{% endif %}</td>
             <td class="der num">{{ i.cantidad|numero }}</td><td>{{ i.unidad }}</td>
             <td class="der num">{{ i.precio|moneda(c.moneda) }}</td><td class="der num">{{ i.total|moneda(c.moneda) }}</td></tr>
         {% endfor %}</tbody></table></div>
@@ -57,6 +57,7 @@
 
     <div class="tarjeta"><div class="tarjeta-cab"><h2>Datos generales</h2></div><div class="tarjeta-cuerpo"><dl class="datos">
       {% if c.asunto %}<dt>Operación</dt><dd>{{ c.asunto }}</dd>{% endif %}
+      {% if c.tarifa_base %}<dt>Tarifa base</dt><dd><a href="{{ url_for('tarifas.editar', ident=c.tarifa_base.id) }}">{{ c.tarifa_base.codigo }}</a>{% if c.tarifa_base.estado != 'vigente' %} <span class="badge b-error">{{ c.tarifa_base.estado|replace('_', ' ') }}</span>{% endif %}</dd>{% endif %}
       {% if c.ejecutivo %}<dt>Ejecutivo</dt><dd>{{ c.ejecutivo }}</dd>{% endif %}
       {% if c.condicion_pago %}<dt>Condición</dt><dd>{{ c.condicion_pago }}</dd>{% endif %}
       <dt>Moneda</dt><dd>{{ c.moneda }}</dd>

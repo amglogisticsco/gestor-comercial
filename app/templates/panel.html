@@ -14,8 +14,8 @@
 </div>
 
 <div class="kpis">
-  <div class="tarjeta kpi"><div class="etiqueta">Cotizado este mes</div><div class="valor">{{ kpi.cotizado_mes|moneda }}</div><div class="detalle">{{ kpi.cotizaciones_mes }} {{ "cotización" if kpi.cotizaciones_mes == 1 else "cotizaciones" }}</div></div>
-  <div class="tarjeta kpi"><div class="etiqueta">Aprobadas este mes</div><div class="valor">{{ kpi.aprobadas_mes }}</div><div class="detalle">de {{ kpi.cotizaciones_mes }} emitidas</div></div>
+  <div class="tarjeta kpi"><div class="etiqueta">Cotizado este mes</div><div class="valor">{{ kpi.cotizado_mes_usd|moneda('USD') }}</div><div class="detalle">{% if kpi.cotizado_mes_cop %}+ {{ kpi.cotizado_mes_cop|moneda('COP') }} · {% endif %}{{ kpi.cotizaciones_mes }} {{ "cotización" if kpi.cotizaciones_mes == 1 else "cotizaciones" }}</div></div>
+  <div class="tarjeta kpi"><div class="etiqueta">Tasa de aceptación</div><div class="valor">{{ ((kpi.aceptadas / kpi.decididas * 100)|round|int ~ ' %') if kpi.decididas else '—' }}</div><div class="detalle">{{ kpi.aceptadas }} aceptadas de {{ kpi.decididas }} enviadas</div></div>
   <div class="tarjeta kpi"><div class="etiqueta">Esperando respuesta</div><div class="valor">{{ kpi.en_espera }}</div><div class="detalle">cotizaciones enviadas</div></div>
   <div class="tarjeta kpi"><div class="etiqueta">Fondos por cobrar</div><div class="valor">{{ kpi.por_cobrar|moneda }}</div><div class="detalle">{{ kpi.anticipos_pendientes }} {{ "solicitud" if kpi.anticipos_pendientes == 1 else "solicitudes" }}</div></div>
 </div>

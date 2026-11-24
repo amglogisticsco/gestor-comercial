@@ -51,7 +51,7 @@ def test_flujo_completo(cliente_http):
         "razon_social": "Importadora Andina SAS", "nit": "900123456-7", "contacto_nombre": "Carlos Gómez",
         "email": "carlos@andina.test", "fecha_nacimiento": hoy.replace(year=1985).isoformat(),
     })
-    assert "Cliente creado" in r.get_data(as_text=True)
+    assert "Cliente CLI-0001 creado" in r.get_data(as_text=True)
     with c.app.app_context():
         cliente = Cliente.query.one()
         cid = cliente.id
@@ -207,3 +207,32 @@ def test_cliente_exterior_sin_iva(cliente_http):
         ext_id, loc_id = ext.id, loc.id
     assert 'name="iva_pct" id="iva_pct" value="0"' in c.get(f"/cotizaciones/nueva?cliente_id={ext_id}").get_data(as_text=True)
     assert 'name="iva_pct" id="iva_pct" value="19"' in c.get(f"/cotizaciones/nueva?cliente_id={loc_id}").get_data(as_text=True)
+
+
+def test_importar_excel_y_tarifas(cliente_http):
+    from pathlib import Path
+    from app.models import Cotizacion, Tarifa, numero_cotizacion
+    c = cliente_http
+    post(c, "/setup", {"empresa": "AMG LOGISTICS SAS", "nombre": "David", "email": "d@amg.test", "clave": "clave-segura"})
+    libro = Path(__file__).parent / "datos" / "libro_prueba.xlsx"
+    datos = {"_csrf": csrf(c, "/configuracion/importar"), "cotizaciones": "1",
+             "archivo": (libro.open("rb"), "libro.xlsx")}
+    r = c.post("/configuracion/importar", data=datos, content_type="multipart/form-data", follow_redirects=True)
+    texto = r.get_data(as_text=True)
+    assert "2 clientes" in texto and "2 tarifas" in texto and "1 cotizaciones" in texto, texto[:400]
+    with c.app.app_context():
+        assert Cliente.query.filter_by(razon_social="AMG LOGISTICS SAS").count() == 0  # la empresa no es cliente
+        caribe = Cliente.query.filter_by(codigo="CLI-0003").one()
+        assert caribe.es_exterior
+        assert {t.codigo: t.estado for t in Tarifa.query} == {"TAR-0001": "vigente", "TAR-0002": "vencida"}
+        cot = Cotizacion.query.filter_by(numero="COT-0007").one()
+        assert cot.estado == "aprobada" and cot.total == 2699 and cot.iva_pct == 0
+        assert numero_cotizacion() == "COT-0008"  # la numeración continúa
+    # Reimportar no duplica
+    datos["archivo"] = (libro.open("rb"), "libro.xlsx")
+    datos["_csrf"] = csrf(c, "/configuracion/importar")
+    c.post("/configuracion/importar", data=datos, content_type="multipart/form-data")
+    with c.app.app_context():
+        assert Cliente.query.count() == 2 and Tarifa.query.count() == 2
+    for url in ["/tarifas/", "/tarifas/?estado=vencida", "/tarifas/nueva", "/tarifas/1", "/cotizaciones/nueva", "/servicios/", "/"]:
+        assert c.get(url).status_code == 200, url

@@ -192,3 +192,17 @@ def test_migra_base_anterior(tmp_path):
         from app.models import Usuario
         u = Usuario.query.one()
         assert u.nombre == "Ana" and u.es_admin and u.activo
+
+
+def test_cliente_exterior_sin_iva(cliente_http):
+    c = cliente_http
+    post(c, "/setup", {"empresa": "AMG", "nombre": "David", "email": "d@amg.test", "clave": "clave-segura"})
+    post(c, "/clientes/nuevo", {"razon_social": "MODALUX INC", "pais": "Trinidad y Tobago"})
+    post(c, "/clientes/nuevo", {"razon_social": "Local SAS", "pais": "Colombia"})
+    with c.app.app_context():
+        ext = Cliente.query.filter_by(razon_social="MODALUX INC").one()
+        loc = Cliente.query.filter_by(razon_social="Local SAS").one()
+        assert ext.es_exterior and not loc.es_exterior
+        ext_id, loc_id = ext.id, loc.id
+    assert 'name="iva_pct" id="iva_pct" value="0"' in c.get(f"/cotizaciones/nueva?cliente_id={ext_id}").get_data(as_text=True)
+    assert 'name="iva_pct" id="iva_pct" value="19"' in c.get(f"/cotizaciones/nueva?cliente_id={loc_id}").get_data(as_text=True)

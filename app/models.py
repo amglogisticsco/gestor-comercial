@@ -122,6 +122,12 @@ class Cliente(db.Model):
         base = (self.contacto_nombre or self.razon_social or "").strip()
         return base.split()[0].capitalize() if base else ""
 
+    @property
+    def es_exterior(self):
+        """Cliente fuera de Colombia: sus cotizaciones arrancan con IVA 0 %."""
+        pais = (self.pais or "").strip().lower()
+        return bool(pais) and pais not in ("colombia", "co", "col")
+
     def cumple_en(self, anio):
         """Fecha de cumpleaños en un año dado (29-feb pasa a 28-feb en años no bisiestos)."""
         if not self.fecha_nacimiento:

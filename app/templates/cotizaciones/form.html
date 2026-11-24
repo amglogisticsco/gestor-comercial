@@ -17,9 +17,9 @@
       <h3>Datos generales</h3>
       <div class="form-grid">
         <div class="c-6"><label>Cliente</label>
-          <select name="cliente_id" required>
+          <select name="cliente_id" id="cliente" required>
             <option value="">Selecciona un cliente…</option>
-            {% for cl in clientes %}<option value="{{ cl.id }}" {{ 'selected' if cl.id == c.cliente_id }}>{{ cl.razon_social }}{% if cl.nit %} · {{ cl.nit }}{% endif %}</option>{% endfor %}
+            {% for cl in clientes %}<option value="{{ cl.id }}" data-exterior="{{ 1 if cl.es_exterior else 0 }}" data-pais="{{ cl.pais or '' }}" {{ 'selected' if cl.id == c.cliente_id }}>{{ cl.razon_social }}{% if cl.nit %} · {{ cl.nit }}{% endif %}</option>{% endfor %}
           </select>
           <div class="ayuda">¿No está? <a href="{{ url_for('clientes.nuevo') }}" target="_blank">Crear cliente</a> y recarga.</div></div>
         <div class="c-3"><label>Tipo de operación</label><select name="tipo_operacion">{{ opciones(tipos, c.tipo_operacion) }}</select></div>
@@ -58,7 +58,7 @@
 
   <div class="tarjeta">
     <div class="tarjeta-cab"><h2>Servicios cotizados</h2>
-      <div class="acciones"><label style="margin:0" class="small">IVA %</label><input type="text" name="iva_pct" id="iva_pct" value="{{ c.iva_pct|numero }}" style="width:70px;height:32px"></div></div>
+      <div class="acciones"><span class="small muted" id="aviso-iva"></span><label style="margin:0" class="small">IVA %</label><input type="text" name="iva_pct" id="iva_pct" value="{{ c.iva_pct|numero }}" style="width:70px;height:32px"></div></div>
     <div class="tabla-envoltura"><table class="tabla items">
       <thead><tr><th style="width:34%">Descripción</th><th style="width:8%">Cant.</th><th style="width:11%">Unidad</th><th style="width:13%">Tarifa</th><th style="width:8%">IVA</th><th style="width:11%">Observación</th><th class="der" style="width:13%">Total</th><th></th></tr></thead>
       <tbody id="items"></tbody>
@@ -159,6 +159,14 @@ document.getElementById('agregar-servicio').addEventListener('change', e => {
   e.target.value = '';
 });
 document.getElementById('iva_pct').addEventListener('input', recalcular);
+const IVA_DEFECTO = {{ empresa_global().iva_pct|tojson }};
+document.getElementById('cliente').addEventListener('change', e => {
+  const op = e.target.selectedOptions[0];
+  const exterior = op && op.dataset.exterior === '1';
+  document.getElementById('iva_pct').value = exterior ? 0 : IVA_DEFECTO;
+  document.getElementById('aviso-iva').textContent = exterior ? 'Cliente en ' + op.dataset.pais + ': IVA 0 %' : '';
+  recalcular();
+});
 document.getElementById('moneda').addEventListener('change', recalcular);
 EXISTENTES.length ? EXISTENTES.forEach(agregarFila) : agregarFila({cantidad: 1, iva: false});
 </script>

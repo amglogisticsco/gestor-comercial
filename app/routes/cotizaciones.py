@@ -87,6 +87,9 @@ def nueva():
     cot = Cotizacion(cliente_id=request.args.get("cliente_id", type=int), fecha=date.today(),
                      validez_dias=empresa.validez_dias, moneda=empresa.moneda, iva_pct=empresa.iva_pct,
                      condiciones=empresa.condiciones, nota_tarifas=empresa.nota_tarifas, ejecutivo=current_user.nombre)
+    cliente = db.session.get(Cliente, cot.cliente_id) if cot.cliente_id else None
+    if cliente and cliente.es_exterior:
+        cot.iva_pct = 0
     if request.method == "POST":
         if _guardar(cot):
             cot.numero = siguiente_numero(Cotizacion, "COT")

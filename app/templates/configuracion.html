@@ -2,7 +2,7 @@
 {% from "_macros.html" import csrf with context %}
 {% block titulo %}Configuración{% endblock %}
 {% block contenido %}
-<div class="encabezado"><div><h1>Configuración</h1><p>Datos que aparecen en tus cotizaciones, anticipos y correos.</p></div></div>
+<div class="encabezado"><div><h1>Configuración</h1><p>Datos que aparecen en tus cotizaciones, solicitudes de fondos y correos.</p></div></div>
 <form method="post" enctype="multipart/form-data">
   {{ csrf() }}
   <div class="tarjeta">
@@ -24,7 +24,7 @@
 
     <div class="seccion-form"><h3>Cotizaciones y solicitudes de fondos</h3><div class="form-grid">
       <div class="c-3"><label>Moneda por defecto</label><select name="moneda">{% for m in monedas %}<option {{ 'selected' if m == e.moneda }}>{{ m }}</option>{% endfor %}</select></div>
-      <div class="c-3"><label>IVA (%)</label><input type="text" name="iva_pct" value="{{ e.iva_pct|numero }}"></div>
+      <div class="c-3"><label>IVA (%) <span class="opc">· clientes en Colombia</span></label><input type="text" name="iva_pct" value="{{ e.iva_pct|numero }}"></div>
       <div class="c-3"><label>Validez (días)</label><input type="number" name="validez_dias" value="{{ e.validez_dias }}" min="1"></div>
       <input type="hidden" name="anticipo_pct" value="{{ e.anticipo_pct|numero }}">
       <div class="c-12"><label>Nota de tarifas</label><textarea name="nota_tarifas" rows="2">{{ e.nota_tarifas }}</textarea></div>

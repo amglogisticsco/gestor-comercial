@@ -57,15 +57,15 @@ Mientras `SMTP_MODO=archivo`, los correos se guardan en `instance/correos_prueba
 | Google Workspace | `smtp.gmail.com` | 587 / tls (usa una "contraseña de aplicación") |
 | cPanel / hosting | `mail.tudominio.com` | 465 / ssl o 587 / tls |
 
-## Publicarla en internet
+## Publicarla en internet (Render)
 
-Para usarla desde el celular o la oficina, súbela a un servidor como Render, Railway o una VPS. El comando de arranque es:
+El repositorio incluye `Dockerfile` y `render.yaml`:
 
-```bash
-gunicorn -w 1 -b 0.0.0.0:$PORT run:app
-```
+1. En https://render.com, entra con tu cuenta de GitHub.
+2. Elige **New → Blueprint**, selecciona `gestor-comercial` y pulsa **Apply**.
+3. Al terminar, Render te da un enlace del tipo `https://gestor-comercial-xxxx.onrender.com`.
 
-Usa un solo *worker* (`-w 1`) para que la tarea de cumpleaños no se ejecute dos veces. Configura un `SECRET_KEY` fijo y haz copias de seguridad de `instance/gestor.db`.
+En el plan gratuito, la app se "duerme" tras 15 minutos sin uso y tarda unos 50 segundos en despertar. Además, **los datos se borran en cada nueva publicación o reinicio**. Sirve para pruebas. Para uso real se necesita un disco persistente (plan Starter, con `DATABASE_URL=sqlite:////var/data/gestor.db`) o una base de datos PostgreSQL.
 
 ## Pruebas
 

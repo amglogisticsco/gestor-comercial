@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: gestor-comercial
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /login
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SMTP_MODO
+        value: archivo
+      - key: ZONA_HORARIA
+        value: America/Bogota
+      - key: CUMPLE_HORA
+        value: "8"

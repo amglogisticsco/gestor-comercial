@@ -93,6 +93,7 @@ def test_flujo_completo(cliente_http):
     assert len(eml) == 1
     msg = message_from_bytes(eml[0].read_bytes(), policy=policy.default)
     assert msg["To"] == "carlos@andina.test"
+    assert "ana@demo.co" in msg["Reply-To"]  # las respuestas van al ejecutivo
     adjuntos = [p.get_filename() for p in msg.iter_attachments()]
     assert adjuntos == [f"{cot.numero}.pdf"]
     with c.app.app_context():

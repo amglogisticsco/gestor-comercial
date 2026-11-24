@@ -106,6 +106,18 @@ def adjunto_pdf(correo):
     return f"{doc.numero}.pdf", contenido
 
 
+def _responder_a(empresa, remitente):
+    """Las respuestas del cliente le llegan al ejecutivo que envió el correo
+    (o al correo general de la empresa si el envío fue automático)."""
+    from flask_login import current_user
+
+    if getattr(current_user, "is_authenticated", False) and current_user.email:
+        return formataddr((current_user.nombre, current_user.email))
+    if empresa.email and empresa.email.lower() != remitente.lower():
+        return formataddr((empresa.nombre, empresa.email))
+    return None
+
+
 def construir_mensaje(correo):
     cfg = current_app.config
     empresa = Empresa.actual()
@@ -125,6 +137,9 @@ def construir_mensaje(correo):
         msg["Cc"] = ", ".join(_lista(correo.cc))
     msg["Subject"] = correo.asunto
     msg["Message-ID"] = make_msgid(domain=remitente.split("@")[-1])
+    responder = _responder_a(empresa, remitente)
+    if responder:
+        msg["Reply-To"] = responder
 
     texto_firma = firma(empresa)
     msg.set_content(f"{correo.cuerpo}\n\n{texto_firma}")

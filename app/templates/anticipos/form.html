@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block titulo %}{{ 'Editar ' ~ a.numero if a.id else 'Nueva solicitud de anticipo' }}{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div>
+  <div class="migas"><a href="{{ url_for('anticipos.lista') }}">Anticipos</a>{% if a.id %} / <a href="{{ url_for('anticipos.ver', ident=a.id) }}">{{ a.numero }}</a>{% endif %}</div>
+  <h1>{{ 'Editar ' ~ a.numero if a.id else 'Nueva solicitud de anticipo' }}</h1>
+</div></div>
+<form method="post" class="tarjeta">
+  {{ csrf() }}
+  <div class="seccion-form">
+    <h3>Origen</h3>
+    <div class="form-grid">
+      <div class="c-6"><label>Cotización <span class="opc">(recomendado)</span></label>
+        <select name="cotizacion_id" id="cotizacion">
+          <option value="" data-total="0">Sin cotización</option>
+          {% for c in cotizaciones %}<option value="{{ c.id }}" data-total="{{ c.total }}" data-moneda="{{ c.moneda }}" {{ 'selected' if c.id == a.cotizacion_id }}>{{ c.numero }} · {{ c.cliente.razon_social }} · {{ c.total|moneda(c.moneda) }}</option>{% endfor %}
+        </select></div>
+      <div class="c-6" id="bloque-cliente"><label>Cliente</label>
+        <select name="cliente_id"><option value="">Selecciona…</option>
+          {% for cl in clientes %}<option value="{{ cl.id }}" {{ 'selected' if cl.id == a.cliente_id }}>{{ cl.razon_social }}</option>{% endfor %}
+        </select><div class="ayuda">Si eliges una cotización, se usa su cliente.</div></div>
+    </div>
+  </div>
+  <div class="seccion-form">
+    <h3>Valor y plazo</h3>
+    <div class="form-grid">
+      <div class="c-3"><label>Porcentaje <span class="opc">(%)</span></label><input type="text" name="porcentaje" id="porcentaje" value="{{ a.porcentaje|numero if a.porcentaje else '' }}" inputmode="decimal"></div>
+      <div class="c-3"><label>Monto</label><input type="text" name="monto" id="monto" value="{{ a.monto|crudo }}" inputmode="decimal" required></div>
+      <div class="c-2"><label>Moneda</label><select name="moneda">{% for m in monedas %}<option {{ 'selected' if m == a.moneda }}>{{ m }}</option>{% endfor %}</select></div>
+      <div class="c-2"><label>Fecha</label><input type="date" name="fecha" value="{{ a.fecha.isoformat() if a.fecha }}"></div>
+      <div class="c-2"><label>Fecha límite</label><input type="date" name="fecha_limite" value="{{ a.fecha_limite.isoformat() if a.fecha_limite }}"></div>
+      <div class="c-12"><label>Concepto</label><input type="text" name="concepto" value="{{ a.concepto or '' }}" placeholder="Anticipo para inicio de operación"></div>
+      <div class="c-12"><label>Notas <span class="opc">(aparecen en el documento)</span></label><textarea name="notas" rows="3">{{ a.notas or '' }}</textarea></div>
+    </div>
+  </div>
+  <div class="pie-form">
+    <a class="btn" href="{{ url_for('anticipos.ver', ident=a.id) if a.id else url_for('anticipos.lista') }}">Cancelar</a>
+    <button class="btn btn-primario" type="submit">Guardar solicitud</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+const sel = document.getElementById('cotizacion'), pct = document.getElementById('porcentaje'), monto = document.getElementById('monto');
+function total() { return parseFloat(sel.selectedOptions[0].dataset.total || 0); }
+function calcular() {
+  const p = parseFloat((pct.value || '').replace(',', '.'));
+  if (total() && !isNaN(p)) monto.value = Math.round(total() * p / 100);
+}
+pct.addEventListener('input', calcular);
+sel.addEventListener('change', () => {
+  document.getElementById('bloque-cliente').style.opacity = sel.value ? .5 : 1;
+  calcular();
+});
+document.getElementById('bloque-cliente').style.opacity = sel.value ? .5 : 1;
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, csrf with context %}
+{% block titulo %}Servicios y tarifas{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div><h1>Servicios y tarifas</h1><p>Tu catálogo. Al cotizar, eliges un servicio y se llenan la descripción, la unidad y el precio.</p></div>
+</div>
+<div class="tarjeta">
+  <div class="tabla-envoltura"><table class="tabla">
+    <thead><tr><th>Servicio</th><th>Unidad</th><th class="der">Tarifa base</th><th>IVA</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+    {% for s in servicios %}
+      <tr><td><span class="principal-celda">{{ s.nombre }}</span><div class="small muted">{{ s.descripcion }}</div></td>
+        <td>{{ s.unidad }}</td><td class="der num">{{ s.precio|moneda if s.precio else '—' }}</td>
+        <td>{{ 'Sí' if s.aplica_iva else 'No' }}</td>
+        <td>{% if s.activo %}<span class="badge b-aprobada">Activo</span>{% else %}<span class="badge b-borrador">Inactivo</span>{% endif %}</td>
+        <td class="der"><button class="btn btn-sm" type="button" onclick='editarServicio({{ {"id": s.id, "nombre": s.nombre, "descripcion": s.descripcion, "unidad": s.unidad, "precio": s.precio, "aplica_iva": s.aplica_iva, "activo": s.activo}|tojson }})'>Editar</button></td></tr>
+    {% endfor %}
+    </tbody></table></div>
+</div>
+
+<form method="post" class="tarjeta" id="form-servicio">
+  {{ csrf() }}<input type="hidden" name="id" id="s-id">
+  <div class="tarjeta-cab"><h2 id="s-titulo">Agregar servicio</h2></div>
+  <div class="tarjeta-cuerpo"><div class="form-grid">
+    <div class="c-4"><label>Nombre</label><input type="text" name="nombre" id="s-nombre" required></div>
+    <div class="c-8"><label>Descripción <span class="opc">(aparece en la cotización)</span></label><input type="text" name="descripcion" id="s-descripcion"></div>
+    <div class="c-3"><label>Unidad</label><input type="text" name="unidad" id="s-unidad" placeholder="Servicio, Día, Kg…"></div>
+    <div class="c-3"><label>Tarifa base</label><input type="text" name="precio" id="s-precio" inputmode="decimal" placeholder="0"></div>
+    <div class="c-3"><label>IVA</label><select name="aplica_iva" id="s-iva"><option value="1">Aplica IVA</option><option value="0">Exento / excluido</option></select></div>
+    <div class="c-3"><label>Estado</label><select name="activo" id="s-activo"><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
+  </div></div>
+  <div class="pie-form"><button class="btn" type="reset" onclick="limpiarServicio()">Limpiar</button><button class="btn btn-primario" type="submit">Guardar servicio</button></div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+function editarServicio(s) {
+  document.getElementById('s-id').value = s.id;
+  document.getElementById('s-nombre').value = s.nombre;
+  document.getElementById('s-descripcion').value = s.descripcion || '';
+  document.getElementById('s-unidad').value = s.unidad || '';
+  document.getElementById('s-precio').value = s.precio || '';
+  document.getElementById('s-iva').value = s.aplica_iva ? '1' : '0';
+  document.getElementById('s-activo').value = s.activo ? '1' : '0';
+  document.getElementById('s-titulo').textContent = 'Editar: ' + s.nombre;
+  document.getElementById('form-servicio').scrollIntoView({behavior: 'smooth'});
+}
+function limpiarServicio() {
+  document.getElementById('s-id').value = '';
+  document.getElementById('s-titulo').textContent = 'Agregar servicio';
+}
+</script>
+{% endblock %}

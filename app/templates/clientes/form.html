@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block titulo %}{{ 'Editar cliente' if cliente.id else 'Nuevo cliente' }}{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <div class="migas"><a href="{{ url_for('clientes.lista') }}">Clientes</a>{% if cliente.id %} / <a href="{{ url_for('clientes.ver', ident=cliente.id) }}">{{ cliente.razon_social }}</a>{% endif %}</div>
+    <h1>{{ 'Editar cliente' if cliente.id else 'Nuevo cliente' }}</h1>
+  </div>
+</div>
+<form method="post" class="tarjeta">
+  {{ csrf() }}
+  <div class="seccion-form">
+    <h3>Empresa</h3>
+    <div class="form-grid">
+      <div class="c-8"><label>Nombre o razón social</label><input type="text" name="razon_social" value="{{ cliente.razon_social or '' }}" required autofocus></div>
+      <div class="c-4"><label>NIT / Documento</label><input type="text" name="nit" value="{{ cliente.nit or '' }}"></div>
+      <div class="c-6"><label>Dirección</label><input type="text" name="direccion" value="{{ cliente.direccion or '' }}"></div>
+      <div class="c-3"><label>Ciudad</label><input type="text" name="ciudad" value="{{ cliente.ciudad or '' }}"></div>
+      <div class="c-3"><label>País</label><input type="text" name="pais" value="{{ cliente.pais or 'Colombia' }}"></div>
+    </div>
+  </div>
+  <div class="seccion-form">
+    <h3>Contacto principal</h3>
+    <div class="form-grid">
+      <div class="c-6"><label>Nombre del contacto</label><input type="text" name="contacto_nombre" value="{{ cliente.contacto_nombre or '' }}"></div>
+      <div class="c-6"><label>Cargo <span class="opc">(opcional)</span></label><input type="text" name="cargo" value="{{ cliente.cargo or '' }}"></div>
+      <div class="c-6"><label>Correo</label><input type="email" name="email" value="{{ cliente.email or '' }}"><div class="ayuda">A este correo se envían cotizaciones, anticipos y saludos.</div></div>
+      <div class="c-6"><label>Teléfono / WhatsApp</label><input type="text" name="telefono" value="{{ cliente.telefono or '' }}"></div>
+      <div class="c-6"><label>Correos en copia <span class="opc">(opcional)</span></label><input type="text" name="email_cc" value="{{ cliente.email_cc or '' }}" placeholder="compras@cliente.com, gerencia@cliente.com"><div class="ayuda">Separa varios correos con comas.</div></div>
+      <div class="c-6"><label>Fecha de nacimiento <span class="opc">(opcional)</span></label><input type="date" name="fecha_nacimiento" value="{{ cliente.fecha_nacimiento.isoformat() if cliente.fecha_nacimiento else '' }}"><div class="ayuda">Si la tienes, el sistema preparará un saludo en su cumpleaños.</div></div>
+    </div>
+  </div>
+  <div class="seccion-form">
+    <h3>Notas internas</h3>
+    <textarea name="notas" rows="3" placeholder="Preferencias, condiciones especiales, horarios de contacto…">{{ cliente.notas or '' }}</textarea>
+    {% if cliente.id %}
+    <label class="check" style="margin-top:12px"><input type="hidden" name="activo" value="0"><input type="checkbox" name="activo" value="1" {{ 'checked' if cliente.activo }}> Cliente activo</label>
+    {% endif %}
+  </div>
+  <div class="pie-form">
+    <a class="btn" href="{{ url_for('clientes.ver', ident=cliente.id) if cliente.id else url_for('clientes.lista') }}">Cancelar</a>
+    <button class="btn btn-primario" type="submit">Guardar cliente</button>
+  </div>
+</form>
+{% endblock %}

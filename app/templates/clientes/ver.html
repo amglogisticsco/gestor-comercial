@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, badge, iniciales, csrf with context %}
+{% block titulo %}{{ cliente.razon_social }}{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <div class="migas"><a href="{{ url_for('clientes.lista') }}">Clientes</a></div>
+    <div class="fila-persona"><div class="avatar" style="width:44px;height:44px;font-size:15px">{{ iniciales(cliente.razon_social) }}</div>
+      <div><h1>{{ cliente.razon_social }}</h1>
+      <p style="margin:0">{% if cliente.nit %}NIT {{ cliente.nit }} · {% endif %}{{ cliente.ciudad or '' }}{% if not cliente.activo %} · <span class="badge b-borrador">Inactivo</span>{% endif %}</p></div></div>
+  </div>
+  <div class="acciones">
+    <a class="btn" href="{{ url_for('clientes.editar', ident=cliente.id) }}">{{ icono('editar') }} Editar</a>
+    <form class="en-linea" method="post" action="{{ url_for('correos.nuevo', cliente_id=cliente.id) }}">{{ csrf() }}<button class="btn" type="submit">{{ icono('correo') }} Escribir correo</button></form>
+    <a class="btn btn-primario" href="{{ url_for('cotizaciones.nueva', cliente_id=cliente.id) }}">{{ icono('mas') }} Cotización</a>
+  </div>
+</div>
+
+<div class="rejilla-3-1">
+  <div>
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Cotizaciones</h2></div>
+      {% if cliente.cotizaciones %}
+      <div class="tabla-envoltura"><table class="tabla">
+        <thead><tr><th>Número</th><th>Fecha</th><th>Estado</th><th class="der">Total</th></tr></thead>
+        <tbody>{% for c in cliente.cotizaciones %}
+          <tr><td><a class="principal-celda" href="{{ url_for('cotizaciones.ver', ident=c.id) }}">{{ c.numero }}</a></td><td>{{ c.fecha|fecha }}</td>
+          <td>{{ badge(c.estado_actual, ESTADOS) }}</td><td class="der num">{{ c.total|moneda(c.moneda) }}</td></tr>
+        {% endfor %}</tbody></table></div>
+      {% else %}<div class="vacio">Sin cotizaciones.</div>{% endif %}
+    </div>
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Anticipos</h2><a class="small" href="{{ url_for('anticipos.nuevo', cliente_id=cliente.id) }}">Nuevo anticipo</a></div>
+      {% if cliente.anticipos %}
+      <div class="tabla-envoltura"><table class="tabla">
+        <thead><tr><th>Número</th><th>Fecha límite</th><th>Estado</th><th class="der">Monto</th></tr></thead>
+        <tbody>{% for a in cliente.anticipos %}
+          <tr><td><a class="principal-celda" href="{{ url_for('anticipos.ver', ident=a.id) }}">{{ a.numero }}</a></td><td>{{ a.fecha_limite|fecha }}</td>
+          <td>{{ badge(a.estado, ESTADOS) }}</td><td class="der num">{{ a.monto|moneda(a.moneda) }}</td></tr>
+        {% endfor %}</tbody></table></div>
+      {% else %}<div class="vacio">Sin anticipos.</div>{% endif %}
+    </div>
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Historial de correos</h2></div>
+      {% if cliente.correos %}
+      <ul class="lista-simple">{% for m in cliente.correos %}
+        <li><div><a class="principal-celda" href="{{ url_for('correos.editar', ident=m.id) }}">{{ m.asunto or '(sin asunto)' }}</a>
+          <div class="small muted">{{ (m.enviado_en or m.creado)|fecha_hora }}</div></div>{{ badge(m.estado, ESTADOS) }}</li>
+      {% endfor %}</ul>
+      {% else %}<div class="vacio">Sin correos.</div>{% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="tarjeta"><div class="tarjeta-cab"><h2>Contacto</h2></div>
+      <div class="tarjeta-cuerpo"><dl class="datos">
+        <dt>Nombre</dt><dd>{{ cliente.contacto_nombre or '—' }}{% if cliente.cargo %}<div class="small muted">{{ cliente.cargo }}</div>{% endif %}</dd>
+        <dt>Correo</dt><dd>{% if cliente.email %}<a href="mailto:{{ cliente.email }}">{{ cliente.email }}</a>{% else %}—{% endif %}</dd>
+        {% if cliente.email_cc %}<dt>En copia</dt><dd>{{ cliente.email_cc }}</dd>{% endif %}
+        <dt>Teléfono</dt><dd>{{ cliente.telefono or '—' }}</dd>
+        <dt>Dirección</dt><dd>{{ cliente.direccion or '—' }}{% if cliente.ciudad %}<div class="small muted">{{ cliente.ciudad }}, {{ cliente.pais }}</div>{% endif %}</dd>
+        <dt>Cumpleaños</dt><dd>{% if cliente.fecha_nacimiento %}{{ cliente.fecha_nacimiento|dia_mes }}
+          {% set d = cliente.dias_para_cumple() %}<div class="small muted">{% if d == 0 %}¡Es hoy!{% else %}Faltan {{ d }} días{% endif %}</div>{% else %}—{% endif %}</dd>
+        <dt>Cliente desde</dt><dd>{{ cliente.creado|fecha }}</dd>
+      </dl></div>
+    </div>
+    {% if cliente.notas %}
+    <div class="tarjeta"><div class="tarjeta-cab"><h2>Notas</h2></div><div class="tarjeta-cuerpo">{{ cliente.notas|parrafos }}</div></div>
+    {% endif %}
+    <div style="margin-top:14px;text-align:right">
+      <form class="en-linea" method="post" action="{{ url_for('clientes.eliminar', ident=cliente.id) }}">{{ csrf() }}
+        <button class="btn btn-sm btn-peligro" type="submit" data-confirmar="¿Eliminar este cliente? Si tiene historial, se marcará como inactivo.">Eliminar cliente</button></form>
+    </div>
+  </div>
+</div>
+{% endblock %}

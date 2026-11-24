@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge with context %}
+{% block titulo %}Correos{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div><h1>Correos</h1><p>Cada correo se revisa aquí antes de enviarse.</p></div></div>
+<div class="pestanas">
+  <a href="{{ url_for('correos.lista') }}" class="{{ 'activo' if vista != 'enviados' }}">Por revisar</a>
+  <a href="{{ url_for('correos.lista', vista='enviados') }}" class="{{ 'activo' if vista == 'enviados' }}">Enviados</a>
+</div>
+<div class="tarjeta">
+  {% if correos %}
+  <div class="tabla-envoltura"><table class="tabla">
+    <thead><tr><th>Asunto</th><th>Para</th><th>Tipo</th><th>{{ 'Enviado' if vista == 'enviados' else 'Creado' }}</th><th>Estado</th></tr></thead>
+    <tbody>{% for m in correos %}
+      <tr><td><a class="principal-celda" href="{{ url_for('correos.editar', ident=m.id) }}">{{ m.asunto or '(sin asunto)' }}</a>
+          {% if m.cliente %}<div class="small muted">{{ m.cliente.razon_social }}</div>{% endif %}</td>
+        <td class="small">{{ m.para or '—' }}</td><td>{{ tipos.get(m.tipo, m.tipo) }}</td>
+        <td class="small">{{ (m.enviado_en if vista == 'enviados' else m.creado)|fecha_hora }}</td>
+        <td>{{ badge(m.estado, ESTADOS) }}</td></tr>
+    {% endfor %}</tbody></table></div>
+  {% else %}<div class="vacio">{{ 'Aún no has enviado correos.' if vista == 'enviados' else 'No hay correos pendientes por revisar.' }}</div>{% endif %}
+</div>
+{% endblock %}

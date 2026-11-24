@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, badge, iniciales, csrf with context %}
+{% block titulo %}Panel{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Hola, {{ current_user.nombre.split()[0] }}</h1>
+    <p>{{ hoy()|fecha_larga|capitalize }}</p>
+  </div>
+  <div class="acciones">
+    <a class="btn" href="{{ url_for('clientes.nuevo') }}">{{ icono('mas') }} Cliente</a>
+    <a class="btn btn-primario" href="{{ url_for('cotizaciones.nueva') }}">{{ icono('mas') }} Nueva cotización</a>
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="tarjeta kpi"><div class="etiqueta">Cotizado este mes</div><div class="valor">{{ kpi.cotizado_mes|moneda }}</div><div class="detalle">{{ kpi.cotizaciones_mes }} {{ "cotización" if kpi.cotizaciones_mes == 1 else "cotizaciones" }}</div></div>
+  <div class="tarjeta kpi"><div class="etiqueta">Aprobadas este mes</div><div class="valor">{{ kpi.aprobadas_mes }}</div><div class="detalle">de {{ kpi.cotizaciones_mes }} emitidas</div></div>
+  <div class="tarjeta kpi"><div class="etiqueta">Esperando respuesta</div><div class="valor">{{ kpi.en_espera }}</div><div class="detalle">cotizaciones enviadas</div></div>
+  <div class="tarjeta kpi"><div class="etiqueta">Anticipos por cobrar</div><div class="valor">{{ kpi.por_cobrar|moneda }}</div><div class="detalle">{{ kpi.anticipos_pendientes }} {{ "solicitud" if kpi.anticipos_pendientes == 1 else "solicitudes" }}</div></div>
+</div>
+
+<div class="rejilla-3-1">
+  <div>
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Cotizaciones recientes</h2><a href="{{ url_for('cotizaciones.lista') }}" class="small">Ver todas</a></div>
+      {% if recientes %}
+      <div class="tabla-envoltura"><table class="tabla">
+        <thead><tr><th>Número</th><th>Cliente</th><th>Estado</th><th class="der">Total</th></tr></thead>
+        <tbody>
+        {% for c in recientes %}
+          <tr><td><a class="principal-celda" href="{{ url_for('cotizaciones.ver', ident=c.id) }}">{{ c.numero }}</a><div class="small muted">{{ c.fecha|fecha }}</div></td>
+            <td>{{ c.cliente.razon_social }}</td><td>{{ badge(c.estado_actual, ESTADOS) }}</td>
+            <td class="der num">{{ c.total|moneda(c.moneda) }}</td></tr>
+        {% endfor %}
+        </tbody></table></div>
+      {% else %}<div class="vacio">Aún no hay cotizaciones. <a href="{{ url_for('cotizaciones.nueva') }}">Crea la primera</a>.</div>{% endif %}
+    </div>
+
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Anticipos por cobrar</h2><a href="{{ url_for('anticipos.lista') }}" class="small">Ver todos</a></div>
+      {% if por_cobrar %}
+      <div class="tabla-envoltura"><table class="tabla">
+        <thead><tr><th>Número</th><th>Cliente</th><th>Fecha límite</th><th class="der">Monto</th></tr></thead>
+        <tbody>
+        {% for a in por_cobrar %}
+          <tr><td><a class="principal-celda" href="{{ url_for('anticipos.ver', ident=a.id) }}">{{ a.numero }}</a></td>
+            <td>{{ a.cliente.razon_social }}</td>
+            <td>{% if a.vencido %}<span class="badge b-error">Vencido {{ a.fecha_limite|fecha }}</span>{% else %}{{ a.fecha_limite|fecha }}{% endif %}</td>
+            <td class="der num">{{ a.monto|moneda(a.moneda) }}</td></tr>
+        {% endfor %}
+        </tbody></table></div>
+      {% else %}<div class="vacio">No hay anticipos pendientes.</div>{% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Correos por revisar</h2><a href="{{ url_for('correos.lista') }}" class="small">Bandeja</a></div>
+      {% if borradores %}
+      <ul class="lista-simple">
+        {% for m in borradores %}
+        <li><div style="min-width:0"><a href="{{ url_for('correos.editar', ident=m.id) }}" class="principal-celda">{{ m.asunto or '(sin asunto)' }}</a>
+          <div class="small muted">{{ m.cliente.razon_social if m.cliente else m.para }}</div></div>
+          {% if m.estado == 'error' %}<span class="badge b-error">Error</span>{% else %}<span class="badge b-borrador">Borrador</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="vacio">Todo al día.</div>{% endif %}
+    </div>
+
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Próximos cumpleaños</h2><span class="small muted">30 días</span></div>
+      {% if cumples %}
+      <ul class="lista-simple">
+        {% for c in cumples %}{% set dias = c.dias_para_cumple() %}
+        <li><div class="fila-persona"><div class="avatar">{{ iniciales(c.contacto_nombre or c.razon_social) }}</div>
+          <div><a href="{{ url_for('clientes.ver', ident=c.id) }}" class="principal-celda">{{ c.contacto_nombre or c.razon_social }}</a>
+          <div class="small muted">{{ c.proximo_cumple()|dia_mes }}{% if c.contacto_nombre %} · {{ c.razon_social }}{% endif %}</div></div></div>
+          {% if dias == 0 %}<span class="pastilla-hoy">Hoy</span>{% else %}<span class="small muted">en {{ dias }} {{ 'día' if dias == 1 else 'días' }}</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="vacio">Sin cumpleaños en los próximos 30 días.</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

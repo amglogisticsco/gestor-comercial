@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, badge with context %}
+{% block titulo %}Cotizaciones{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div><h1>Cotizaciones</h1><p>{{ cotizaciones|length }} {{ 'resultado' if cotizaciones|length == 1 else 'resultados' }}</p></div>
+  <a class="btn btn-primario" href="{{ url_for('cotizaciones.nueva') }}">{{ icono('mas') }} Nueva cotización</a>
+</div>
+<div class="pestanas">
+  <a href="{{ url_for('cotizaciones.lista') }}" class="{{ 'activo' if not estado }}">Todas</a>
+  {% for clave, nombre in estados.items() %}<a href="{{ url_for('cotizaciones.lista', estado=clave) }}" class="{{ 'activo' if estado == clave }}">{{ nombre }}</a>{% endfor %}
+</div>
+<div class="tarjeta">
+  {% if cotizaciones %}
+  <div class="tabla-envoltura"><table class="tabla">
+    <thead><tr><th>Número</th><th>Cliente</th><th>Operación</th><th>Fecha</th><th>Vence</th><th>Estado</th><th class="der">Total</th></tr></thead>
+    <tbody>{% for c in cotizaciones %}
+      <tr><td><a class="principal-celda" href="{{ url_for('cotizaciones.ver', ident=c.id) }}">{{ c.numero }}</a></td>
+        <td>{{ c.cliente.razon_social }}</td>
+        <td class="small">{{ c.tipo_operacion or '' }}{% if c.origen and c.destino %}<div class="muted">{{ c.origen }} → {{ c.destino }}</div>{% endif %}</td>
+        <td>{{ c.fecha|fecha }}</td><td>{{ c.vence|fecha }}</td>
+        <td>{{ badge(c.estado_actual, ESTADOS) }}</td><td class="der num">{{ c.total|moneda(c.moneda) }}</td></tr>
+    {% endfor %}</tbody></table></div>
+  {% else %}<div class="vacio">No hay cotizaciones{% if estado %} en este estado{% endif %}.</div>{% endif %}
+</div>
+{% endblock %}

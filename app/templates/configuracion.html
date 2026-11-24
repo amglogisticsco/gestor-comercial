@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block titulo %}Configuración{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div><h1>Configuración</h1><p>Datos que aparecen en tus cotizaciones, anticipos y correos.</p></div></div>
+<form method="post" enctype="multipart/form-data">
+  {{ csrf() }}
+  <div class="tarjeta">
+    <div class="seccion-form"><h3>Empresa</h3><div class="form-grid">
+      <div class="c-8"><label>Razón social</label><input type="text" name="nombre" value="{{ e.nombre }}" required></div>
+      <div class="c-4"><label>NIT</label><input type="text" name="nit" value="{{ e.nit }}"></div>
+      <div class="c-8"><label>Dirección</label><input type="text" name="direccion" value="{{ e.direccion }}"></div>
+      <div class="c-4"><label>Ciudad</label><input type="text" name="ciudad" value="{{ e.ciudad }}"></div>
+      <div class="c-4"><label>Teléfono</label><input type="text" name="telefono" value="{{ e.telefono }}"></div>
+      <div class="c-4"><label>Correo</label><input type="email" name="email" value="{{ e.email }}"></div>
+      <div class="c-4"><label>Sitio web</label><input type="text" name="web" value="{{ e.web }}"></div>
+      <div class="c-8"><label>Logo <span class="opc">(PNG, JPG o SVG)</span></label><input type="file" name="logo" accept=".png,.jpg,.jpeg,.svg">
+        {% if e.logo %}<div style="display:flex;align-items:center;gap:14px;margin-top:10px"><img src="{{ url_for('configuracion.logo') }}" alt="Logo" style="max-height:48px;border:1px solid var(--borde);border-radius:6px;padding:4px;background:#fff">
+          <label class="check" style="margin:0"><input type="checkbox" name="quitar_logo" value="1"> Quitar logo</label></div>{% endif %}</div>
+      <div class="c-4"><label>Color de marca</label><input type="color" name="color" value="{{ e.color or '#12304F' }}" style="height:38px;padding:3px;width:100%;border:1px solid #D3DAE4;border-radius:8px"></div>
+    </div></div>
+
+    <div class="seccion-form"><h3>Cotizaciones y anticipos</h3><div class="form-grid">
+      <div class="c-3"><label>Moneda por defecto</label><select name="moneda">{% for m in monedas %}<option {{ 'selected' if m == e.moneda }}>{{ m }}</option>{% endfor %}</select></div>
+      <div class="c-3"><label>IVA (%)</label><input type="text" name="iva_pct" value="{{ e.iva_pct|numero }}"></div>
+      <div class="c-3"><label>Validez (días)</label><input type="number" name="validez_dias" value="{{ e.validez_dias }}" min="1"></div>
+      <div class="c-3"><label>Anticipo sugerido (%)</label><input type="text" name="anticipo_pct" value="{{ e.anticipo_pct|numero }}"></div>
+      <div class="c-6"><label>Condiciones comerciales por defecto</label><textarea name="condiciones" rows="5">{{ e.condiciones }}</textarea></div>
+      <div class="c-6"><label>Datos bancarios <span class="opc">(van en anticipos y correos de cobro)</span></label><textarea name="datos_bancarios" rows="5" placeholder="Banco: …&#10;Cuenta corriente N.º …&#10;Titular: …&#10;NIT: …">{{ e.datos_bancarios }}</textarea></div>
+    </div></div>
+
+    <div class="seccion-form"><h3>Correos</h3><div class="form-grid">
+      <div class="c-6"><label>Firma</label><textarea name="firma_correo" rows="5" placeholder="Nombre&#10;Cargo&#10;Empresa · Teléfono">{{ e.firma_correo }}</textarea>
+        <div class="ayuda">Si la dejas vacía, se usan el nombre, teléfono, correo y web de la empresa.</div></div>
+      <div class="c-6"><label>Servidor de envío</label>
+        <div class="preview" style="padding:14px">
+          {% if smtp.modo == 'smtp' %}
+            <div><span class="badge b-aprobada">Envío real activo</span></div>
+            <dl class="datos small" style="margin-top:10px"><dt>Servidor</dt><dd>{{ smtp.host or 'sin configurar' }}:{{ smtp.puerto }} ({{ smtp.seguridad }})</dd>
+            <dt>Remitente</dt><dd>{{ smtp.remitente or 'sin configurar' }}</dd></dl>
+          {% else %}
+            <div><span class="badge b-pendiente">Modo de prueba</span></div>
+            <p class="small muted" style="margin:8px 0 0">Los correos se guardan como archivos .eml y no salen a los clientes. Para activar el envío real, configura tu correo corporativo en el archivo <code>.env</code> (ver README).</p>
+          {% endif %}
+        </div></div>
+    </div></div>
+
+    <div class="seccion-form"><h3>Saludos de cumpleaños</h3><div class="form-grid">
+      <div class="c-12"><label>Asunto</label><input type="text" name="cumple_asunto" value="{{ e.cumple_asunto }}"></div>
+      <div class="c-12"><label>Mensaje</label><textarea name="cumple_mensaje" rows="7">{{ e.cumple_mensaje }}</textarea>
+        <div class="ayuda">Usa <code>{nombre}</code> para el primer nombre del contacto y <code>{empresa}</code> para tu empresa.</div></div>
+      <div class="c-12">
+        <label class="check"><input type="checkbox" name="cumple_auto_envio" value="1" {{ 'checked' if e.cumple_auto_envio }}> Enviar los saludos automáticamente</label>
+        <div class="ayuda">Desactivado: cada día a las {{ hora }}:00 ({{ zona }}) se prepara el borrador y tú lo envías desde «Correos». Activado: se envía solo, sin revisión.</div>
+      </div>
+    </div></div>
+
+    <div class="pie-form"><button class="btn btn-primario" type="submit">Guardar configuración</button></div>
+  </div>
+</form>
+{% endblock %}

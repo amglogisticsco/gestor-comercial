@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, badge, csrf with context %}
+{% block titulo %}{{ a.numero }}{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <div class="migas"><a href="{{ url_for('anticipos.lista') }}">Anticipos</a></div>
+    <h1>{{ a.numero }} &nbsp;{{ badge(a.estado, ESTADOS) }}</h1>
+    <p><a href="{{ url_for('clientes.ver', ident=a.cliente.id) }}">{{ a.cliente.razon_social }}</a>{% if a.cotizacion %} · <a href="{{ url_for('cotizaciones.ver', ident=a.cotizacion.id) }}">{{ a.cotizacion.numero }}</a>{% endif %}</p>
+  </div>
+  <div class="acciones">
+    <a class="btn" href="{{ url_for('anticipos.ver_pdf', ident=a.id) }}" target="_blank">{{ icono('pdf') }} Ver PDF</a>
+    <a class="btn" href="{{ url_for('anticipos.editar', ident=a.id) }}">{{ icono('editar') }} Editar</a>
+    <form class="en-linea" method="post" action="{{ url_for('anticipos.preparar_correo', ident=a.id) }}">{{ csrf() }}
+      <button class="btn btn-primario" type="submit">{{ icono('correo') }} Preparar correo</button></form>
+  </div>
+</div>
+<div class="rejilla-3-1">
+  <div class="tarjeta"><div class="tarjeta-cab"><h2>Detalle</h2></div><div class="tarjeta-cuerpo">
+    <div class="kpi" style="padding:0 0 16px"><div class="etiqueta">Monto solicitado</div><div class="valor">{{ a.monto|moneda(a.moneda) }}</div>
+      {% if a.porcentaje %}<div class="detalle">{{ a.porcentaje|numero }}% de {{ a.cotizacion.total|moneda(a.moneda) if a.cotizacion else 'la operación' }}</div>{% endif %}</div>
+    <dl class="datos">
+      <dt>Concepto</dt><dd>{{ a.concepto or '—' }}</dd>
+      <dt>Fecha</dt><dd>{{ a.fecha|fecha }}</dd>
+      <dt>Fecha límite</dt><dd>{{ a.fecha_limite|fecha }}{% if a.vencido %} <span class="badge b-error">Vencido</span>{% endif %}</dd>
+      {% if a.fecha_pago %}<dt>Pagado el</dt><dd>{{ a.fecha_pago|fecha }}</dd>{% endif %}
+      {% if a.notas %}<dt>Notas</dt><dd>{{ a.notas|parrafos }}</dd>{% endif %}
+    </dl>
+  </div></div>
+  <div class="tarjeta"><div class="tarjeta-cab"><h2>Estado</h2></div><div class="tarjeta-cuerpo">
+    {% if a.estado in ('pendiente', 'enviada') %}
+    <form method="post" action="{{ url_for('anticipos.cambiar_estado', ident=a.id) }}">{{ csrf() }}
+      <input type="hidden" name="estado" value="pagada">
+      <label>Fecha de pago</label><input type="date" name="fecha_pago" value="{{ hoy().isoformat() }}">
+      <button class="btn btn-exito" style="margin-top:10px;width:100%;justify-content:center" type="submit">Marcar como pagado</button>
+    </form>
+    <hr style="border:0;border-top:1px solid var(--borde);margin:16px 0">
+    {% endif %}
+    <form method="post" action="{{ url_for('anticipos.cambiar_estado', ident=a.id) }}" style="display:flex;gap:8px">{{ csrf() }}
+      <select name="estado">{% for k, v in estados.items() %}<option value="{{ k }}" {{ 'selected' if k == a.estado }}>{{ v }}</option>{% endfor %}</select>
+      <button class="btn" type="submit">Actualizar</button>
+    </form>
+  </div></div>
+</div>
+{% endblock %}

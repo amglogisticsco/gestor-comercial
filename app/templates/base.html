@@ -1,0 +1,57 @@
+{% from "_macros.html" import icono, csrf with context %}
+{% set emp = empresa_global() %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Panel{% endblock %} · {{ emp.nombre }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <style>:root { --marca: {{ emp.color or '#12304F' }}; }</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="marca">
+      {% if emp.logo %}<img src="{{ url_for('configuracion.logo') }}" alt="{{ emp.nombre }}">
+      {% else %}<div class="marca-ini">{{ emp.nombre[:1] }}</div>{% endif %}
+      <div><div class="marca-nombre">{{ emp.nombre }}</div><div class="marca-sub">Gestor comercial</div></div>
+    </div>
+    {% set ep = request.endpoint or '' %}
+    <nav class="nav">
+      <a href="{{ url_for('panel.inicio') }}" class="{{ 'activo' if ep.startswith('panel') }}">{{ icono('panel') }} Panel</a>
+      <a href="{{ url_for('clientes.lista') }}" class="{{ 'activo' if ep.startswith('clientes') }}">{{ icono('clientes') }} Clientes</a>
+      <a href="{{ url_for('cotizaciones.lista') }}" class="{{ 'activo' if ep.startswith('cotizaciones') }}">{{ icono('cotizacion') }} Cotizaciones</a>
+      <a href="{{ url_for('anticipos.lista') }}" class="{{ 'activo' if ep.startswith('anticipos') }}">{{ icono('anticipo') }} Anticipos</a>
+      <a href="{{ url_for('correos.lista') }}" class="{{ 'activo' if ep.startswith('correos') }}">{{ icono('correo') }} Correos
+        {% set pend = correos_pendientes() %}{% if pend %}<span class="contador">{{ pend }}</span>{% endif %}</a>
+      <div class="nav-sep"></div>
+      <a href="{{ url_for('servicios.lista') }}" class="{{ 'activo' if ep.startswith('servicios') }}">{{ icono('servicios') }} Servicios y tarifas</a>
+      <a href="{{ url_for('configuracion.empresa') }}" class="{{ 'activo' if ep.startswith('configuracion') }}">{{ icono('ajustes') }} Configuración</a>
+    </nav>
+    <div class="sidebar-pie">
+      <div style="color:#fff;font-weight:500">{{ current_user.nombre }}</div>
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button type="submit">Cerrar sesión</button>
+      </form>
+    </div>
+  </aside>
+
+  <main class="principal">
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in mensajes %}<div class="alerta alerta-{{ cat }}">{{ msg }}</div>{% endfor %}
+    {% endwith %}
+    {% block contenido %}{% endblock %}
+  </main>
+</div>
+<script>
+  document.querySelectorAll('[data-confirmar]').forEach(function (el) {
+    el.addEventListener('click', function (ev) { if (!confirm(el.dataset.confirmar)) ev.preventDefault(); });
+  });
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

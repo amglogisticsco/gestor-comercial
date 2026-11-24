@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block titulo %}Importar clientes{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div>
+  <div class="migas"><a href="{{ url_for('clientes.lista') }}">Clientes</a></div>
+  <h1>Importar clientes</h1><p>Carga tu base de clientes desde Excel guardado como CSV.</p>
+</div></div>
+<form method="post" enctype="multipart/form-data" class="tarjeta">
+  {{ csrf() }}
+  <div class="seccion-form">
+    <h3>1. Prepara el archivo</h3>
+    <p class="muted" style="margin-top:0">La primera fila debe tener estos encabezados (solo <strong>razon_social</strong> es obligatorio):</p>
+    <p><code>{{ campos|join(' ; ') }}</code></p>
+    <p class="ayuda">La fecha de nacimiento va en formato AAAA-MM-DD (ej. 1985-03-14). Puedes usar «Exportar» para obtener una plantilla.</p>
+  </div>
+  <div class="seccion-form">
+    <h3>2. Sube el archivo</h3>
+    <input type="file" name="archivo" accept=".csv" required>
+    <p class="ayuda">Se omiten las filas sin nombre y los NIT que ya existen.</p>
+  </div>
+  <div class="pie-form"><a class="btn" href="{{ url_for('clientes.lista') }}">Cancelar</a><button class="btn btn-primario" type="submit">Importar</button></div>
+</form>
+{% endblock %}

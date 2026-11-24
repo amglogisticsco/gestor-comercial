@@ -1,0 +1,185 @@
+"""Borradores y envío de correos. Nada se envía sin una acción explícita (salvo el
+envío automático de cumpleaños, que viene desactivado por defecto)."""
+import smtplib
+import ssl
+from collections import defaultdict
+from datetime import datetime
+from email.message import EmailMessage
+from email.utils import formataddr, make_msgid
+from pathlib import Path
+
+from flask import current_app, render_template
+
+from .. import db
+from ..filtros import fecha_larga, moneda
+from ..models import Correo, Empresa
+from . import pdf
+
+
+class ErrorEnvio(Exception):
+    pass
+
+
+def _rellenar(texto, **datos):
+    return (texto or "").format_map(defaultdict(str, datos))
+
+
+def firma(empresa):
+    if empresa.firma_correo:
+        return empresa.firma_correo
+    lineas = [empresa.nombre, empresa.telefono, empresa.email, empresa.web]
+    return "\n".join(l for l in lineas if l)
+
+
+def borrador_cotizacion(cot):
+    empresa = Empresa.actual()
+    cliente = cot.cliente
+    asunto = f"Cotización {cot.numero} – {empresa.nombre}"
+    cuerpo = (
+        f"Buen día, {cliente.nombre_saludo}:\n\n"
+        f"Reciba un cordial saludo. Adjuntamos la cotización {cot.numero} correspondiente a "
+        f"{cot.resumen}, por un valor total de {moneda(cot.total, cot.moneda)}.\n\n"
+        f"La oferta tiene una vigencia de {cot.validez_dias} días (hasta el {fecha_larga(cot.vence)}). "
+        "Quedamos atentos a sus comentarios o a cualquier ajuste que requiera.\n\n"
+        "Cordialmente,"
+    )
+    return _crear(cliente, "cotizacion", asunto, cuerpo, "cotizacion", cot.id)
+
+
+def borrador_anticipo(ant):
+    empresa = Empresa.actual()
+    cliente = ant.cliente
+    referencia = f" (cotización {ant.cotizacion.numero})" if ant.cotizacion else ""
+    porcentaje = f" ({ant.porcentaje:g}% del total)" if ant.porcentaje else ""
+    limite = f", con fecha límite de pago el {fecha_larga(ant.fecha_limite)}" if ant.fecha_limite else ""
+    banco = f"\n\nPuede realizar el pago a la siguiente cuenta:\n{empresa.datos_bancarios}" if empresa.datos_bancarios else ""
+    asunto = f"Solicitud de anticipo {ant.numero} – {empresa.nombre}"
+    cuerpo = (
+        f"Buen día, {cliente.nombre_saludo}:\n\n"
+        f"Con el fin de dar inicio a la operación{referencia}, le solicitamos amablemente el anticipo "
+        f"por valor de {moneda(ant.monto, ant.moneda)}{porcentaje}{limite}.{banco}\n\n"
+        "Le agradecemos enviarnos el soporte de pago respondiendo a este correo. "
+        "Adjuntamos el documento de solicitud.\n\n"
+        "Cordialmente,"
+    )
+    return _crear(cliente, "anticipo", asunto, cuerpo, "anticipo", ant.id)
+
+
+def borrador_cumpleanos(cliente):
+    empresa = Empresa.actual()
+    datos = {"nombre": cliente.nombre_saludo, "empresa": empresa.nombre, "cliente": cliente.razon_social}
+    return _crear(
+        cliente, "cumpleanos",
+        _rellenar(empresa.cumple_asunto, **datos),
+        _rellenar(empresa.cumple_mensaje, **datos),
+    )
+
+
+def borrador_libre(cliente):
+    return _crear(cliente, "libre", "", f"Buen día, {cliente.nombre_saludo}:\n\n\n\nCordialmente,")
+
+
+def _crear(cliente, tipo, asunto, cuerpo, adjunto_tipo=None, adjunto_id=None):
+    correo = Correo(
+        cliente=cliente, tipo=tipo, para=cliente.email or "", cc=cliente.email_cc or "",
+        asunto=asunto, cuerpo=cuerpo, adjunto_tipo=adjunto_tipo, adjunto_id=adjunto_id,
+    )
+    db.session.add(correo)
+    db.session.commit()
+    return correo
+
+
+def _lista(texto):
+    return [d.strip() for d in (texto or "").replace(";", ",").split(",") if d.strip()]
+
+
+def adjunto_pdf(correo):
+    doc = correo.adjunto
+    if doc is None:
+        return None
+    contenido = pdf.pdf_cotizacion(doc) if correo.adjunto_tipo == "cotizacion" else pdf.pdf_anticipo(doc)
+    return f"{doc.numero}.pdf", contenido
+
+
+def construir_mensaje(correo):
+    cfg = current_app.config
+    empresa = Empresa.actual()
+    remitente = cfg["SMTP_REMITENTE"] or empresa.email
+    if not remitente:
+        raise ErrorEnvio("Falta el correo remitente. Configúralo en el archivo .env (SMTP_REMITENTE).")
+    destinatarios = _lista(correo.para)
+    if not destinatarios:
+        raise ErrorEnvio("El correo no tiene destinatario.")
+    if not correo.asunto.strip():
+        raise ErrorEnvio("El correo no tiene asunto.")
+
+    msg = EmailMessage()
+    msg["From"] = formataddr((empresa.nombre, remitente))
+    msg["To"] = ", ".join(destinatarios)
+    if _lista(correo.cc):
+        msg["Cc"] = ", ".join(_lista(correo.cc))
+    msg["Subject"] = correo.asunto
+    msg["Message-ID"] = make_msgid(domain=remitente.split("@")[-1])
+
+    texto_firma = firma(empresa)
+    msg.set_content(f"{correo.cuerpo}\n\n{texto_firma}")
+    msg.add_alternative(
+        render_template("email/correo.html", correo=correo, empresa=empresa, firma=texto_firma), subtype="html"
+    )
+    adjunto = adjunto_pdf(correo)
+    if adjunto:
+        nombre, contenido = adjunto
+        msg.add_attachment(contenido, maintype="application", subtype="pdf", filename=nombre)
+    return msg
+
+
+def enviar(correo):
+    """Envía un correo ya revisado. Devuelve True si salió; guarda el error si falla."""
+    cfg = current_app.config
+    try:
+        msg = construir_mensaje(correo)
+        copia_oculta = _lista(cfg["SMTP_COPIA_OCULTA"])
+        if cfg["SMTP_MODO"] == "smtp":
+            if not cfg["SMTP_HOST"]:
+                raise ErrorEnvio("El servidor SMTP no está configurado (archivo .env).")
+            _enviar_smtp(msg, copia_oculta)
+        else:
+            bandeja = Path(cfg["BANDEJA_PRUEBA"])
+            bandeja.mkdir(parents=True, exist_ok=True)
+            (bandeja / f"{datetime.now():%Y%m%d-%H%M%S}-{correo.id}.eml").write_bytes(bytes(msg))
+    except (ErrorEnvio, smtplib.SMTPException, OSError) as exc:
+        correo.estado = "error"
+        correo.error = str(exc)
+        db.session.commit()
+        return False
+
+    correo.estado = "enviado"
+    correo.error = ""
+    correo.enviado_en = datetime.now()
+    _actualizar_documento(correo)
+    db.session.commit()
+    return True
+
+
+def _enviar_smtp(msg, copia_oculta):
+    cfg = current_app.config
+    contexto = ssl.create_default_context()
+    if cfg["SMTP_SEGURIDAD"] == "ssl":
+        servidor = smtplib.SMTP_SSL(cfg["SMTP_HOST"], cfg["SMTP_PORT"], context=contexto, timeout=30)
+    else:
+        servidor = smtplib.SMTP(cfg["SMTP_HOST"], cfg["SMTP_PORT"], timeout=30)
+    with servidor:
+        if cfg["SMTP_SEGURIDAD"] == "tls":
+            servidor.starttls(context=contexto)
+        if cfg["SMTP_USUARIO"]:
+            servidor.login(cfg["SMTP_USUARIO"], cfg["SMTP_CLAVE"])
+        destinos = _lista(msg["To"]) + _lista(msg.get("Cc", "")) + copia_oculta
+        servidor.send_message(msg, to_addrs=destinos)
+
+
+def _actualizar_documento(correo):
+    doc = correo.adjunto
+    if correo.adjunto_tipo == "cotizacion" and doc and doc.estado == "borrador":
+        doc.estado = "enviada"
+    if correo.adjunto_tipo == "anticipo" and doc and doc.estado == "pendiente":
+        doc.estado = "enviada"

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, csrf with context %}
+{% block titulo %}Revisar correo{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div>
+  <div class="migas"><a href="{{ url_for('correos.lista') }}">Correos</a>{% if correo.cliente %} / <a href="{{ url_for('clientes.ver', ident=correo.cliente.id) }}">{{ correo.cliente.razon_social }}</a>{% endif %}</div>
+  <h1>Revisar y enviar</h1><p>{{ tipos.get(correo.tipo) }} · borrador creado el {{ correo.creado|fecha_hora }}</p>
+</div></div>
+
+{% if correo.estado == 'error' %}<div class="alerta alerta-error">El último intento falló: {{ correo.error }}</div>{% endif %}
+{% if modo_prueba %}<div class="alerta alerta-info">Modo de prueba activo: al pulsar «Enviar» el correo se guarda como archivo y no le llega al cliente. Configura el SMTP en el archivo <code>.env</code> para enviar de verdad.</div>{% endif %}
+
+<form method="post" class="rejilla">
+  {{ csrf() }}
+  <div class="tarjeta" style="margin:0">
+    <div class="tarjeta-cuerpo"><div class="form-grid">
+      <div class="c-12"><label>Para</label><input type="text" name="para" id="para" value="{{ correo.para }}" required></div>
+      <div class="c-12"><label>CC <span class="opc">(opcional, separados por coma)</span></label><input type="text" name="cc" value="{{ correo.cc }}"></div>
+      <div class="c-12"><label>Asunto</label><input type="text" name="asunto" id="asunto" value="{{ correo.asunto }}" required></div>
+      <div class="c-12"><label>Mensaje</label><textarea name="cuerpo" id="cuerpo" rows="14">{{ correo.cuerpo }}</textarea>
+        <div class="ayuda">La firma se agrega automáticamente (se edita en Configuración).</div></div>
+      {% if correo.adjunto %}
+      <div class="c-12"><label>Adjunto</label>
+        <a class="adjunto" href="{{ url_for('anticipos.ver_pdf' if correo.adjunto_tipo == 'anticipo' else 'cotizaciones.ver_pdf', ident=correo.adjunto_id) }}" target="_blank">{{ icono('pdf') }} {{ correo.adjunto.numero }}.pdf</a></div>
+      {% endif %}
+    </div></div>
+    <div class="pie-form" style="justify-content:space-between">
+      <button class="btn btn-peligro" type="submit" formaction="{{ url_for('correos.eliminar', ident=correo.id) }}" formnovalidate data-confirmar="¿Descartar este borrador?">Descartar</button>
+      <div class="acciones">
+        <button class="btn" type="submit" name="accion" value="guardar">Guardar borrador</button>
+        <button class="btn btn-primario" type="submit" name="accion" value="enviar" id="btn-enviar">{{ icono('enviar') }} Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <h3 style="margin:2px 0 10px">Vista previa</h3>
+    <div class="preview">
+      <div class="small muted" style="margin-bottom:10px"><strong>Para:</strong> <span id="pv-para">{{ correo.para }}</span><br><strong>Asunto:</strong> <span id="pv-asunto">{{ correo.asunto }}</span></div>
+      <div class="preview-hoja">
+        <div class="preview-cab" style="background:{{ empresa_global().color or '#12304F' }}">{{ empresa_global().nombre }}</div>
+        <div class="preview-cuerpo" id="pv-cuerpo">{{ correo.cuerpo }}</div>
+        <div class="preview-firma">{{ firma }}</div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+[['para','pv-para'],['asunto','pv-asunto'],['cuerpo','pv-cuerpo']].forEach(([a, b]) => {
+  document.getElementById(a).addEventListener('input', e => document.getElementById(b).textContent = e.target.value);
+});
+document.getElementById('btn-enviar').addEventListener('click', ev => {
+  const para = document.getElementById('para').value;
+  if (!confirm('¿Enviar este correo a ' + para + '?')) ev.preventDefault();
+});
+</script>
+{% endblock %}

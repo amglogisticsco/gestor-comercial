@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, badge with context %}
+{% block titulo %}{{ correo.asunto }}{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div>
+  <div class="migas"><a href="{{ url_for('correos.lista', vista='enviados') }}">Correos enviados</a></div>
+  <h1>{{ correo.asunto }}</h1>
+  <p>{{ badge(correo.estado, ESTADOS) }} &nbsp;{{ correo.enviado_en|fecha_hora }} · {{ tipos.get(correo.tipo) }}</p>
+</div></div>
+<div class="tarjeta" style="max-width:760px"><div class="tarjeta-cuerpo">
+  <dl class="datos" style="margin-bottom:16px">
+    <dt>Para</dt><dd>{{ correo.para }}</dd>
+    {% if correo.cc %}<dt>CC</dt><dd>{{ correo.cc }}</dd>{% endif %}
+    {% if correo.adjunto %}<dt>Adjunto</dt><dd>{{ correo.adjunto.numero }}.pdf</dd>{% endif %}
+  </dl>
+  <div class="preview"><div class="preview-hoja">
+    <div class="preview-cuerpo">{{ correo.cuerpo }}</div><div class="preview-firma">{{ firma }}</div>
+  </div></div>
+</div></div>
+{% endblock %}

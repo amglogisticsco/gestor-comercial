@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, badge, csrf with context %}
+{% block titulo %}{{ c.numero }}{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <div class="migas"><a href="{{ url_for('cotizaciones.lista') }}">Cotizaciones</a></div>
+    <h1>{{ c.numero }} &nbsp;{{ badge(c.estado_actual, ESTADOS) }}</h1>
+    <p><a href="{{ url_for('clientes.ver', ident=c.cliente.id) }}">{{ c.cliente.razon_social }}</a> · {{ c.fecha|fecha }} · vence {{ c.vence|fecha }}</p>
+  </div>
+  <div class="acciones">
+    <a class="btn" href="{{ url_for('cotizaciones.ver_pdf', ident=c.id) }}" target="_blank">{{ icono('pdf') }} Ver PDF</a>
+    <a class="btn" href="{{ url_for('cotizaciones.editar', ident=c.id) }}">{{ icono('editar') }} Editar</a>
+    <form class="en-linea" method="post" action="{{ url_for('cotizaciones.preparar_correo', ident=c.id) }}">{{ csrf() }}
+      <button class="btn btn-primario" type="submit">{{ icono('correo') }} Preparar correo</button></form>
+  </div>
+</div>
+
+<div class="rejilla-3-1">
+  <div>
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Servicios</h2></div>
+      <div class="tabla-envoltura"><table class="tabla">
+        <thead><tr><th>Descripción</th><th class="der">Cant.</th><th>Unidad</th><th class="der">Precio</th><th class="der">Total</th></tr></thead>
+        <tbody>{% for i in c.items %}
+          <tr><td>{{ i.descripcion }}{% if not i.aplica_iva %}<div class="small muted">Sin IVA</div>{% endif %}</td>
+            <td class="der num">{{ i.cantidad|numero }}</td><td>{{ i.unidad }}</td>
+            <td class="der num">{{ i.precio|moneda(c.moneda) }}</td><td class="der num">{{ i.total|moneda(c.moneda) }}</td></tr>
+        {% endfor %}</tbody></table></div>
+      <div class="totales num">
+        <div><span class="muted">Subtotal</span><span>{{ c.subtotal|moneda(c.moneda) }}</span></div>
+        <div><span class="muted">IVA {{ c.iva_pct|numero }}%</span><span>{{ c.iva|moneda(c.moneda) }}</span></div>
+        <div class="total"><span>Total</span><span>{{ c.total|moneda(c.moneda) }}</span></div>
+      </div>
+    </div>
+    {% if c.notas or c.condiciones %}
+    <div class="tarjeta"><div class="tarjeta-cuerpo">
+      {% if c.notas %}<h3 style="margin-bottom:6px">Notas</h3><p style="margin-top:0">{{ c.notas|parrafos }}</p>{% endif %}
+      {% if c.condiciones %}<h3 style="margin-bottom:6px">Condiciones</h3><p class="muted" style="margin:0">{{ c.condiciones|parrafos }}</p>{% endif %}
+    </div></div>
+    {% endif %}
+  </div>
+
+  <div>
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Estado</h2></div>
+      <div class="tarjeta-cuerpo">
+        <form method="post" action="{{ url_for('cotizaciones.cambiar_estado', ident=c.id) }}" style="display:flex;gap:8px">{{ csrf() }}
+          <select name="estado">{% for k, v in estados.items() if k != 'vencida' %}<option value="{{ k }}" {{ 'selected' if k == c.estado }}>{{ v }}</option>{% endfor %}</select>
+          <button class="btn" type="submit">Actualizar</button>
+        </form>
+        {% if c.estado == 'aprobada' %}
+        <a class="btn btn-exito" style="margin-top:12px;width:100%;justify-content:center" href="{{ url_for('anticipos.nuevo', cotizacion_id=c.id) }}">{{ icono('anticipo') }} Solicitar anticipo</a>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if c.tiene_operacion %}
+    <div class="tarjeta"><div class="tarjeta-cab"><h2>Operación</h2></div><div class="tarjeta-cuerpo"><dl class="datos">
+      {% if c.tipo_operacion %}<dt>Tipo</dt><dd>{{ c.tipo_operacion }}</dd>{% endif %}
+      {% if c.modalidad %}<dt>Modalidad</dt><dd>{{ c.modalidad }}</dd>{% endif %}
+      {% if c.incoterm %}<dt>Incoterm</dt><dd>{{ c.incoterm }}</dd>{% endif %}
+      {% if c.origen %}<dt>Origen</dt><dd>{{ c.origen }}</dd>{% endif %}
+      {% if c.destino %}<dt>Destino</dt><dd>{{ c.destino }}</dd>{% endif %}
+      {% if c.mercancia %}<dt>Mercancía</dt><dd>{{ c.mercancia }}</dd>{% endif %}
+      {% if c.bultos %}<dt>Bultos</dt><dd>{{ c.bultos }}</dd>{% endif %}
+      {% if c.peso_kg %}<dt>Peso</dt><dd>{{ c.peso_kg }} kg</dd>{% endif %}
+      {% if c.volumen_m3 %}<dt>Volumen</dt><dd>{{ c.volumen_m3 }} m³</dd>{% endif %}
+    </dl></div></div>
+    {% endif %}
+
+    {% if c.anticipos %}
+    <div class="tarjeta"><div class="tarjeta-cab"><h2>Anticipos</h2></div>
+      <ul class="lista-simple">{% for a in c.anticipos %}
+        <li><a href="{{ url_for('anticipos.ver', ident=a.id) }}" class="principal-celda">{{ a.numero }}</a><span class="num">{{ a.monto|moneda(a.moneda) }}</span>{{ badge(a.estado, ESTADOS) }}</li>
+      {% endfor %}</ul></div>
+    {% endif %}
+
+    <div class="acciones" style="margin-top:14px;justify-content:flex-end">
+      <form class="en-linea" method="post" action="{{ url_for('cotizaciones.duplicar', ident=c.id) }}">{{ csrf() }}<button class="btn btn-sm" type="submit">{{ icono('copiar') }} Duplicar</button></form>
+      {% if c.estado == 'borrador' and not c.anticipos %}
+      <form class="en-linea" method="post" action="{{ url_for('cotizaciones.eliminar', ident=c.id) }}">{{ csrf() }}<button class="btn btn-sm btn-peligro" type="submit" data-confirmar="¿Eliminar esta cotización?">Eliminar</button></form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

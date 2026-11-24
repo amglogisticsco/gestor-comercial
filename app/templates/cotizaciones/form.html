@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, csrf with context %}
+{% block titulo %}{{ 'Editar ' ~ c.numero if c.id else 'Nueva cotización' }}{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div>
+  <div class="migas"><a href="{{ url_for('cotizaciones.lista') }}">Cotizaciones</a>{% if c.id %} / <a href="{{ url_for('cotizaciones.ver', ident=c.id) }}">{{ c.numero }}</a>{% endif %}</div>
+  <h1>{{ 'Editar ' ~ c.numero if c.id else 'Nueva cotización' }}</h1>
+</div></div>
+
+<form method="post" id="form-cot">
+  {{ csrf() }}
+  <div class="tarjeta">
+    <div class="seccion-form">
+      <h3>Datos generales</h3>
+      <div class="form-grid">
+        <div class="c-6"><label>Cliente</label>
+          <select name="cliente_id" required>
+            <option value="">Selecciona un cliente…</option>
+            {% for cl in clientes %}<option value="{{ cl.id }}" {{ 'selected' if cl.id == c.cliente_id }}>{{ cl.razon_social }}{% if cl.nit %} · {{ cl.nit }}{% endif %}</option>{% endfor %}
+          </select>
+          <div class="ayuda">¿No está? <a href="{{ url_for('clientes.nuevo') }}" target="_blank">Crear cliente</a> y recarga.</div></div>
+        <div class="c-2"><label>Fecha</label><input type="date" name="fecha" value="{{ c.fecha.isoformat() if c.fecha }}"></div>
+        <div class="c-2"><label>Validez (días)</label><input type="number" name="validez_dias" min="1" value="{{ c.validez_dias }}"></div>
+        <div class="c-2"><label>Moneda</label><select name="moneda" id="moneda">{% for m in monedas %}<option {{ 'selected' if m == c.moneda }}>{{ m }}</option>{% endfor %}</select></div>
+      </div>
+    </div>
+    <div class="seccion-form">
+      <h3>Operación <span class="opc" style="text-transform:none;letter-spacing:0;font-weight:400">· opcional, aparece en el PDF si la llenas</span></h3>
+      <div class="form-grid">
+        <div class="c-3"><label>Tipo</label><select name="tipo_operacion"><option value=""></option>{% for t in tipos %}<option {{ 'selected' if t == c.tipo_operacion }}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="c-3"><label>Modalidad</label><select name="modalidad"><option value=""></option>{% for m in modalidades %}<option {{ 'selected' if m == c.modalidad }}>{{ m }}</option>{% endfor %}</select></div>
+        <div class="c-2"><label>Incoterm</label><select name="incoterm"><option value=""></option>{% for i in incoterms %}<option {{ 'selected' if i == c.incoterm }}>{{ i }}</option>{% endfor %}</select></div>
+        <div class="c-2"><label>Origen</label><input type="text" name="origen" value="{{ c.origen or '' }}" placeholder="Shanghái, CN"></div>
+        <div class="c-2"><label>Destino</label><input type="text" name="destino" value="{{ c.destino or '' }}" placeholder="Bogotá, CO"></div>
+        <div class="c-6"><label>Mercancía</label><input type="text" name="mercancia" value="{{ c.mercancia or '' }}" placeholder="Descripción general de la carga"></div>
+        <div class="c-2"><label>Bultos</label><input type="text" name="bultos" value="{{ c.bultos or '' }}"></div>
+        <div class="c-2"><label>Peso (kg)</label><input type="text" name="peso_kg" value="{{ c.peso_kg or '' }}"></div>
+        <div class="c-2"><label>Volumen (m³)</label><input type="text" name="volumen_m3" value="{{ c.volumen_m3 or '' }}"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><h2>Servicios cotizados</h2>
+      <div class="acciones"><label style="margin:0" class="small">IVA %</label><input type="text" name="iva_pct" id="iva_pct" value="{{ c.iva_pct|numero }}" style="width:70px;height:32px"></div></div>
+    <div class="tabla-envoltura"><table class="tabla items">
+      <thead><tr><th style="width:42%">Descripción</th><th style="width:10%">Cant.</th><th style="width:12%">Unidad</th><th style="width:15%">Precio unitario</th><th style="width:8%">IVA</th><th class="der" style="width:13%">Total</th><th></th></tr></thead>
+      <tbody id="items"></tbody>
+    </table></div>
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;padding:12px 18px 0">
+      <select id="agregar-servicio" style="max-width:340px">
+        <option value="">+ Agregar servicio del catálogo…</option>
+        {% for s in servicios %}<option value="{{ s.id }}">{{ s.nombre }}</option>{% endfor %}
+      </select>
+      <button class="btn" type="button" onclick="agregarFila()">{{ icono('mas') }} Línea libre</button>
+    </div>
+    <div class="totales num">
+      <div><span class="muted">Subtotal</span><span id="t-sub">0</span></div>
+      <div><span class="muted">IVA</span><span id="t-iva">0</span></div>
+      <div class="total"><span>Total</span><span id="t-total">0</span></div>
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="seccion-form"><div class="form-grid">
+      <div class="c-6"><label>Notas para el cliente <span class="opc">(opcional)</span></label><textarea name="notas" rows="4">{{ c.notas or '' }}</textarea></div>
+      <div class="c-6"><label>Condiciones comerciales</label><textarea name="condiciones" rows="4">{{ c.condiciones or '' }}</textarea></div>
+    </div></div>
+    <div class="pie-form">
+      <a class="btn" href="{{ url_for('cotizaciones.ver', ident=c.id) if c.id else url_for('cotizaciones.lista') }}">Cancelar</a>
+      <button class="btn btn-primario" type="submit">Guardar cotización</button>
+    </div>
+  </div>
+</form>
+
+<template id="fila">
+  <tr>
+    <td><input type="hidden" name="item_servicio"><input type="text" name="item_descripcion" placeholder="Descripción del servicio"></td>
+    <td><input type="text" name="item_cantidad" value="1" inputmode="decimal"></td>
+    <td><input type="text" name="item_unidad" value="Servicio"></td>
+    <td><input type="text" name="item_precio" value="0" inputmode="decimal"></td>
+    <td><select name="item_iva"><option value="1">Sí</option><option value="0">No</option></select></td>
+    <td class="der num total-fila">0</td>
+    <td><button type="button" class="quitar" title="Quitar">×</button></td>
+  </tr>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CATALOGO = {
+  {% for s in servicios %}{{ s.id }}: {{ {"nombre": s.nombre, "descripcion": s.descripcion, "unidad": s.unidad, "precio": s.precio, "iva": s.aplica_iva}|tojson }},{% endfor %}
+};
+const EXISTENTES = [
+  {% for i in c.items %}{{ {"servicio": i.servicio_id or "", "descripcion": i.descripcion, "cantidad": i.cantidad, "unidad": i.unidad, "precio": i.precio, "iva": i.aplica_iva}|tojson }},{% endfor %}
+];
+const cuerpo = document.getElementById('items');
+
+function aNumero(v) {
+  v = String(v || '').trim().replace(/\s|\$/g, '');
+  if (v.includes(',')) v = v.replace(/\./g, '').replace(',', '.');
+  else if ((v.match(/\./g) || []).length > 1 || /^\d+\.\d{3}$/.test(v)) v = v.replace(/\./g, '');
+  const n = parseFloat(v); return isNaN(n) ? 0 : n;
+}
+function formato(n) {
+  const dec = document.getElementById('moneda').value === 'COP' ? 0 : 2;
+  return n.toLocaleString('es-CO', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+}
+function recalcular() {
+  let sub = 0, base = 0;
+  cuerpo.querySelectorAll('tr').forEach(tr => {
+    const t = aNumero(tr.querySelector('[name=item_cantidad]').value) * aNumero(tr.querySelector('[name=item_precio]').value);
+    tr.querySelector('.total-fila').textContent = formato(t);
+    sub += t; if (tr.querySelector('[name=item_iva]').value === '1') base += t;
+  });
+  const iva = base * aNumero(document.getElementById('iva_pct').value) / 100;
+  document.getElementById('t-sub').textContent = formato(sub);
+  document.getElementById('t-iva').textContent = formato(iva);
+  document.getElementById('t-total').textContent = formato(sub + iva);
+}
+function agregarFila(d) {
+  const tr = document.getElementById('fila').content.firstElementChild.cloneNode(true);
+  if (d) {
+    tr.querySelector('[name=item_servicio]').value = d.servicio || '';
+    tr.querySelector('[name=item_descripcion]').value = d.descripcion || '';
+    tr.querySelector('[name=item_cantidad]').value = d.cantidad ?? 1;
+    tr.querySelector('[name=item_unidad]').value = d.unidad || 'Servicio';
+    tr.querySelector('[name=item_precio]').value = d.precio || 0;
+    tr.querySelector('[name=item_iva]').value = d.iva ? '1' : '0';
+  }
+  tr.querySelector('.quitar').onclick = () => { tr.remove(); recalcular(); };
+  tr.querySelectorAll('input,select').forEach(el => el.addEventListener('input', recalcular));
+  cuerpo.appendChild(tr); recalcular();
+  if (!d) tr.querySelector('[name=item_descripcion]').focus();
+}
+document.getElementById('agregar-servicio').addEventListener('change', e => {
+  const s = CATALOGO[e.target.value]; if (!s) return;
+  agregarFila({servicio: e.target.value, descripcion: s.descripcion ? s.nombre + ' – ' + s.descripcion : s.nombre,
+               cantidad: 1, unidad: s.unidad, precio: s.precio, iva: s.iva});
+  e.target.value = '';
+});
+document.getElementById('iva_pct').addEventListener('input', recalcular);
+document.getElementById('moneda').addEventListener('change', recalcular);
+EXISTENTES.length ? EXISTENTES.forEach(agregarFila) : agregarFila({cantidad: 1, iva: true});
+</script>
+{% endblock %}

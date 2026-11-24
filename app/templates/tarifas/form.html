@@ -16,6 +16,14 @@
         {% for s in servicios %}<option value="{{ s.id }}" {{ 'selected' if s.id == t.servicio_id }}>{{ s.codigo }} · {{ s.nombre }}</option>{% endfor %}
       </select></div>
     <div class="c-6"><label>Proveedor <span class="opc">(naviera, aerolínea, transportador…)</span></label><input type="text" name="proveedor" value="{{ t.proveedor or '' }}"></div>
+    <div class="c-6"><label>Aplica a</label>
+      <select name="cliente_id"><option value="">Todos los clientes (tarifa general)</option>
+        {% for c in clientes %}<option value="{{ c.id }}" {{ 'selected' if c.id == t.cliente_id }}>Solo {{ c.razon_social }}</option>{% endfor %}
+      </select><div class="ayuda">Elige un cliente si tiene una tarifa especial para este servicio.</div></div>
+    <div class="c-6"><label>Proceso</label>
+      <select name="proceso"><option value="">Cualquier proceso</option>
+        {% for p in procesos %}<option {{ 'selected' if p == t.proceso }}>{{ p }}</option>{% endfor %}
+      </select><div class="ayuda">Ej.: agenciamiento para importación y otro para exportación.</div></div>
     <div class="c-6"><label>Origen</label><input type="text" name="origen" value="{{ t.origen or '' }}" placeholder="CARTAGENA"></div>
     <div class="c-6"><label>Destino</label><input type="text" name="destino" value="{{ t.destino or '' }}" placeholder="TRINIDAD Y TOBAGO"></div>
     <div class="c-3"><label>Moneda</label><select name="moneda">{% for m in monedas %}<option {{ 'selected' if m == t.moneda }}>{{ m }}</option>{% endfor %}</select></div>

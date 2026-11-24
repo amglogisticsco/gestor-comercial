@@ -2,7 +2,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from .. import db
-from ..models import ESTADOS_TARIFA, MONEDAS, Servicio, Tarifa, asignar_codigos
+from ..models import ESTADOS_TARIFA, MONEDAS, TIPOS_OPERACION, Cliente, Servicio, Tarifa, asignar_codigos
 from . import a_fecha, a_numero, obtener
 
 bp = Blueprint("tarifas", __name__, url_prefix="/tarifas")
@@ -17,7 +17,9 @@ def lista():
         patron = f"%{q}%"
         consulta = consulta.filter(or_(Tarifa.codigo.ilike(patron), Tarifa.origen.ilike(patron),
                                        Tarifa.destino.ilike(patron), Tarifa.proveedor.ilike(patron),
-                                       Servicio.nombre.ilike(patron), Servicio.codigo.ilike(patron)))
+                                       Servicio.nombre.ilike(patron), Servicio.codigo.ilike(patron),
+                                       Tarifa.proceso.ilike(patron),
+                                       Tarifa.cliente.has(Cliente.razon_social.ilike(patron))))
     tarifas = consulta.order_by(Tarifa.codigo).all()
     conteo = {k: sum(1 for t in tarifas if t.estado == k) for k in ESTADOS_TARIFA}
     if estado:
@@ -37,6 +39,9 @@ def editar(ident=None):
             flash("Selecciona el servicio de la tarifa.", "error")
         else:
             tarifa.servicio = servicio
+            cliente = db.session.get(Cliente, request.form.get("cliente_id", type=int) or 0)
+            tarifa.cliente_id = cliente.id if cliente else None
+            tarifa.proceso = request.form.get("proceso") if request.form.get("proceso") in TIPOS_OPERACION else ""
             for campo in ("origen", "destino", "proveedor", "observaciones"):
                 setattr(tarifa, campo, request.form.get(campo, "").strip())
             tarifa.moneda = request.form.get("moneda") if request.form.get("moneda") in MONEDAS else "USD"
@@ -51,13 +56,15 @@ def editar(ident=None):
             flash(f"Tarifa {tarifa.codigo} guardada.", "ok")
             return redirect(url_for("tarifas.lista"))
     servicios = Servicio.query.filter_by(activo=True).order_by(Servicio.nombre).all()
-    return render_template("tarifas/form.html", t=tarifa, servicios=servicios, monedas=MONEDAS)
+    clientes = Cliente.query.filter_by(activo=True).order_by(Cliente.razon_social).all()
+    return render_template("tarifas/form.html", t=tarifa, servicios=servicios, monedas=MONEDAS, clientes=clientes,
+                           procesos=TIPOS_OPERACION)
 
 
 @bp.route("/<int:ident>/duplicar", methods=["POST"])
 def duplicar(ident):
     t = obtener(Tarifa, ident)
-    copia = Tarifa(servicio_id=t.servicio_id, origen=t.origen, destino=t.destino, proveedor=t.proveedor,
+    copia = Tarifa(servicio_id=t.servicio_id, cliente_id=t.cliente_id, proceso=t.proceso, origen=t.origen, destino=t.destino, proveedor=t.proveedor,
                    moneda=t.moneda, valor=t.valor, observaciones=t.observaciones, activo=True)
     db.session.add(copia)
     asignar_codigos()

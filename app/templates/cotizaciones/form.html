@@ -22,7 +22,7 @@
             {% for cl in clientes %}<option value="{{ cl.id }}" data-exterior="{{ 1 if cl.es_exterior else 0 }}" data-pais="{{ cl.pais or '' }}" {{ 'selected' if cl.id == c.cliente_id }}>{{ cl.razon_social }}{% if cl.nit %} · {{ cl.nit }}{% endif %}</option>{% endfor %}
           </select>
           <div class="ayuda">¿No está? <a href="{{ url_for('clientes.nuevo') }}" target="_blank">Crear cliente</a> y recarga.</div></div>
-        <div class="c-3"><label>Tipo de operación</label><select name="tipo_operacion">{{ opciones(tipos, c.tipo_operacion) }}</select></div>
+        <div class="c-3"><label>Tipo de operación</label><select name="tipo_operacion" id="proceso">{{ opciones(tipos, c.tipo_operacion) }}</select></div>
         <div class="c-3"><label>Modalidad</label><select name="modalidad">{{ opciones(modalidades, c.modalidad) }}</select></div>
         <div class="c-3"><label>Fecha</label><input type="date" name="fecha" value="{{ c.fecha.isoformat() if c.fecha }}"></div>
         <div class="c-2"><label>Vigencia (días)</label><input type="number" name="validez_dias" min="1" value="{{ c.validez_dias }}"></div>
@@ -100,7 +100,9 @@
 <template id="fila">
   <tr>
     <td><input type="hidden" name="item_servicio"><input type="hidden" name="item_tarifa"><input type="text" name="item_descripcion" placeholder="Descripción del servicio">
-      <div class="small control-tarifa" style="margin-top:3px"></div></td>
+      <div class="control-tarifa" style="margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select class="sel-tarifa" title="Tarifa aplicada" style="height:28px;font-size:12px;width:100%;padding:0 6px;color:var(--texto-2)"></select>
+        <span class="small aviso-linea"></span></div></td>
     <td><input type="text" name="item_cantidad" value="1" inputmode="decimal"></td>
     <td><input type="text" name="item_unidad" value="Servicio" list="l-unidades"></td>
     <td><input type="text" name="item_precio" value="0" inputmode="decimal"></td>
@@ -121,31 +123,51 @@ const EXISTENTES = [
   {% for i in c.items %}{{ {"servicio": i.servicio_id or "", "tarifa": i.tarifa_id or "", "descripcion": i.descripcion, "cantidad": i.cantidad, "unidad": i.unidad, "precio": i.precio, "iva": i.aplica_iva, "obs": i.observacion or ""}|tojson }},{% endfor %}
 ];
 const TARIFAS = [
-  {% for t in tarifas %}{{ {"id": t.id, "codigo": t.codigo, "servicio": t.servicio_id, "origen": t.origen, "destino": t.destino, "proveedor": t.proveedor, "moneda": t.moneda, "valor": t.valor, "estado": t.estado, "hasta": t.vigencia_hasta|fecha if t.vigencia_hasta else ""}|tojson }},{% endfor %}
+  {% for t in tarifas %}{{ {"id": t.id, "codigo": t.codigo, "servicio": t.servicio_id, "origen": t.origen, "destino": t.destino, "proveedor": t.proveedor, "cliente": t.cliente_id or "", "cliente_nombre": t.cliente.razon_social if t.cliente else "", "proceso": t.proceso or "", "moneda": t.moneda, "valor": t.valor, "estado": t.estado, "hasta": t.vigencia_hasta|fecha if t.vigencia_hasta else ""}|tojson }},{% endfor %}
 ];
 const ESTADO_TXT = {vigente: 'vigente', vencida: 'VENCIDA', futura: 'aún no vigente', sin_valor: 'SIN VALOR'};
 const norm = t => (t || '').toUpperCase().replace(/\s+/g, ' ').trim();
+function opcionesTarifa(servicioId) {
+  // Tarifas del servicio que aplican: generales o del cliente elegido, y del proceso elegido (o sin proceso)
+  const cli = document.getElementById('cliente').value, pro = document.getElementById('proceso').value;
+  return TARIFAS.filter(t => String(t.servicio) === String(servicioId)
+    && (!t.cliente || String(t.cliente) === cli) && (!t.proceso || !pro || t.proceso === pro));
+}
 function buscarTarifa(servicioId) {
   const o = norm(document.getElementById('origen').value), d = norm(document.getElementById('destino').value);
   const p = norm(document.getElementById('transportista').value);
-  const cands = TARIFAS.filter(t => String(t.servicio) === String(servicioId));
-  const puntaje = t => [t.estado === 'vigente', (o || d) && norm(t.origen) === o && norm(t.destino) === d, p && norm(t.proveedor) === p];
-  cands.sort((a, b) => { const x = puntaje(a), y = puntaje(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return y[i] - x[i]; return 0; });
+  const cli = document.getElementById('cliente').value, pro = document.getElementById('proceso').value;
+  const puntaje = t => [t.estado === 'vigente', !!cli && String(t.cliente) === cli, !!pro && t.proceso === pro,
+                        !!(o || d) && norm(t.origen) === o && norm(t.destino) === d, !!p && norm(t.proveedor) === p];
+  const cands = opcionesTarifa(servicioId).sort((a, b) => {
+    const x = puntaje(a), y = puntaje(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return y[i] - x[i]; return 0; });
   return cands[0] || null;
 }
-function pintarControl(tr) {
-  const el = tr.querySelector('.control-tarifa');
-  const idT = tr.querySelector('[name=item_tarifa]').value, idS = tr.querySelector('[name=item_servicio]').value;
-  const t = TARIFAS.find(x => String(x.id) === String(idT));
-  if (!idS) { el.textContent = ''; return; }
-  if (!t) { el.innerHTML = '<span style="color:var(--alerta)">Sin tarifa registrada: digita el valor</span>'; return; }
-  const moneda = document.getElementById('moneda').value;
-  const avisos = [];
-  if (t.estado !== 'vigente') avisos.push('tarifa ' + ESTADO_TXT[t.estado] + (t.hasta ? ' (hasta ' + t.hasta + ')' : ''));
-  if (t.moneda !== moneda) avisos.push('la tarifa está en ' + t.moneda);
-  el.innerHTML = '<span class="muted">' + t.codigo + (t.proveedor ? ' · ' + t.proveedor : '') + '</span>' +
-    (avisos.length ? ' <span style="color:var(--error);font-weight:600">· ' + avisos.join(' · ') + '</span>' : ' <span style="color:var(--ok)">✓</span>');
+function etiquetaTarifa(t) {
+  const partes = [t.codigo, t.cliente_nombre ? 'Solo ' + t.cliente_nombre : 'General', t.proceso,
+                  [t.origen, t.destino].filter(Boolean).join(' → '), t.proveedor,
+                  t.valor ? t.moneda + ' ' + Number(t.valor).toLocaleString('es-CO') : 'sin valor'];
+  return partes.filter(Boolean).join(' · ') + (t.estado !== 'vigente' ? ' ⚠' : '');
 }
+function pintarControl(tr) {
+  const sel = tr.querySelector('.sel-tarifa'), aviso = tr.querySelector('.aviso-linea');
+  const idT = tr.querySelector('[name=item_tarifa]').value, idS = tr.querySelector('[name=item_servicio]').value;
+  if (!idS) { tr.querySelector('.control-tarifa').style.display = 'none'; return; }
+  tr.querySelector('.control-tarifa').style.display = 'flex';
+  const opciones = opcionesTarifa(idS);
+  const actual = TARIFAS.find(x => String(x.id) === String(idT));
+  if (actual && !opciones.includes(actual)) opciones.unshift(actual);
+  sel.innerHTML = '<option value="">Sin tarifa (valor manual)</option>' +
+    opciones.map(t => '<option value="' + t.id + '"' + (String(t.id) === String(idT) ? ' selected' : '') + '>' + etiquetaTarifa(t) + '</option>').join('');
+  const t = actual;
+  const avisos = [];
+  if (!opciones.length) avisos.push('<span style="color:var(--alerta)">Sin tarifa registrada: digita el valor</span>');
+  if (t && t.estado !== 'vigente') avisos.push('<span style="color:var(--error);font-weight:600">tarifa ' + ESTADO_TXT[t.estado] + (t.hasta ? ' (hasta ' + t.hasta + ')' : '') + '</span>');
+  if (t && t.moneda !== document.getElementById('moneda').value) avisos.push('<span style="color:var(--error);font-weight:600">la tarifa está en ' + t.moneda + '</span>');
+  if (t && !avisos.length) avisos.push('<span style="color:var(--ok)">✓</span>');
+  aviso.innerHTML = avisos.join(' · ');
+}
+
 const cuerpo = document.getElementById('items');
 
 function aNumero(v) {
@@ -183,6 +205,12 @@ function agregarFila(d) {
     tr.querySelector('[name=item_tarifa]').value = d.tarifa || '';
   }
   tr.querySelector('.quitar').onclick = () => { tr.remove(); recalcular(); };
+  tr.querySelector('.sel-tarifa').addEventListener('change', e => {
+    const t = TARIFAS.find(x => String(x.id) === e.target.value);
+    tr.querySelector('[name=item_tarifa]').value = t ? t.id : '';
+    if (t && t.valor) tr.querySelector('[name=item_precio]').value = t.valor;
+    pintarControl(tr); recalcular();
+  });
   tr.querySelectorAll('input,select').forEach(el => el.addEventListener('input', recalcular));
   cuerpo.appendChild(tr); pintarControl(tr); recalcular();
   if (!d) tr.querySelector('[name=item_descripcion]').focus();
@@ -190,6 +218,7 @@ function agregarFila(d) {
 document.getElementById('agregar-servicio').addEventListener('change', e => {
   const s = CATALOGO[e.target.value]; if (!s) return;
   const t = buscarTarifa(e.target.value);
+  cuerpo.querySelectorAll('tr').forEach(tr => { if (!tr.querySelector('[name=item_descripcion]').value.trim()) tr.remove(); });
   agregarFila({servicio: e.target.value, tarifa: t ? t.id : '', descripcion: s.nombre,
                cantidad: 1, unidad: s.unidad, precio: t && t.valor ? t.valor : s.precio, iva: s.iva,
                obs: t && t.estado !== 'vigente' ? 'Sujeto a confirmación' : ''});
@@ -197,6 +226,8 @@ document.getElementById('agregar-servicio').addEventListener('change', e => {
 });
 document.getElementById('iva_pct').addEventListener('input', recalcular);
 const IVA_DEFECTO = {{ empresa_global().iva_pct|tojson }};
+document.getElementById('proceso').addEventListener('change', () => cuerpo.querySelectorAll('tr').forEach(pintarControl));
+document.getElementById('cliente').addEventListener('change', () => cuerpo.querySelectorAll('tr').forEach(pintarControl));
 document.getElementById('cliente').addEventListener('change', e => {
   const op = e.target.selectedOptions[0];
   const exterior = op && op.dataset.exterior === '1';

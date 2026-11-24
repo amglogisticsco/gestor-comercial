@@ -172,6 +172,8 @@ class Tarifa(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(20), default="")  # TAR-0001
     servicio_id = db.Column(db.Integer, db.ForeignKey("servicio.id"), nullable=False)
+    cliente_id = db.Column(db.Integer, db.ForeignKey("cliente.id"), nullable=True)  # vacío = todos los clientes
+    proceso = db.Column(db.String(30), default="")  # Importación, Exportación… vacío = cualquiera
     origen = db.Column(db.String(120), default="")
     destino = db.Column(db.String(120), default="")
     proveedor = db.Column(db.String(120), default="")
@@ -183,6 +185,14 @@ class Tarifa(db.Model):
     activo = db.Column(db.Boolean, default=True)
 
     servicio = db.relationship("Servicio")
+    cliente = db.relationship("Cliente")
+
+    @property
+    def aplica_a(self):
+        partes = [self.cliente.razon_social if self.cliente else "Todos los clientes"]
+        if self.proceso:
+            partes.append(self.proceso)
+        return " · ".join(partes)
 
     @property
     def estado(self):
@@ -204,7 +214,8 @@ class Tarifa(db.Model):
 
     @property
     def etiqueta(self):
-        partes = [self.codigo, self.servicio.nombre if self.servicio else "", self.ruta, self.proveedor]
+        partes = [self.codigo, self.servicio.nombre if self.servicio else "", self.ruta, self.proveedor,
+                  self.cliente.razon_social if self.cliente else "", self.proceso]
         return " · ".join(p for p in partes if p)
 
 
@@ -216,16 +227,19 @@ def _norm(texto):
     return " ".join((texto or "").upper().split())
 
 
-def buscar_tarifa(servicio_id, origen="", destino="", proveedor=""):
-    """La mejor tarifa activa para un servicio: misma ruta y proveedor > misma ruta > cualquiera.
-    Prefiere las vigentes y con valor."""
-    candidatas = Tarifa.query.filter_by(servicio_id=servicio_id, activo=True).all()
+def buscar_tarifa(servicio_id, origen="", destino="", proveedor="", cliente_id=None, proceso=""):
+    """La mejor tarifa activa para un servicio. Nunca usa la tarifa especial de otro cliente.
+    Prioridad: vigente > del cliente > del proceso > misma ruta > mismo proveedor > vence más tarde."""
+    candidatas = [t for t in Tarifa.query.filter_by(servicio_id=servicio_id, activo=True)
+                  if t.cliente_id in (None, cliente_id) and (not t.proceso or not proceso or t.proceso == proceso)]
     if not candidatas:
         return None
 
     def puntaje(t):
         return (
             t.estado == "vigente",
+            cliente_id is not None and t.cliente_id == cliente_id,
+            bool(proceso) and t.proceso == proceso,
             _norm(t.origen) == _norm(origen) and _norm(t.destino) == _norm(destino) and bool(origen or destino),
             bool(proveedor) and _norm(t.proveedor) == _norm(proveedor),
             t.vigencia_hasta or date.min,

@@ -228,3 +228,5 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 .tabla td.num, .tabla td.der.num { white-space: nowrap; }
 .tabla .principal-celda { white-space: nowrap; }
+.tabla.items { table-layout: fixed; min-width: 880px; }
+.tabla.items td { overflow: hidden; }

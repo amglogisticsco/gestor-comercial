@@ -19,11 +19,12 @@
   </div>
   {% if tarifas %}
   <div class="tabla-envoltura"><table class="tabla">
-    <thead><tr><th>Código</th><th>Servicio</th><th>Ruta</th><th>Proveedor</th><th class="der">Tarifa</th><th>Vigencia</th><th>Estado</th></tr></thead>
+    <thead><tr><th>Código</th><th>Servicio</th><th>Aplica a</th><th>Ruta</th><th>Proveedor</th><th class="der">Tarifa</th><th>Vigencia</th><th>Estado</th></tr></thead>
     <tbody>{% for t in tarifas %}
       <tr>
         <td><a class="principal-celda" href="{{ url_for('tarifas.editar', ident=t.id) }}">{{ t.codigo }}</a></td>
         <td>{{ t.servicio.nombre }}<div class="small muted">{{ t.servicio.codigo }}</div></td>
+        <td class="small">{% if t.cliente %}<strong>{{ t.cliente.razon_social }}</strong>{% else %}<span class="muted">Todos</span>{% endif %}{% if t.proceso %}<div class="muted">{{ t.proceso }}</div>{% endif %}</td>
         <td class="small">{{ t.ruta or '—' }}</td>
         <td class="small">{{ t.proveedor or '—' }}</td>
         <td class="der num">{{ t.valor|moneda(t.moneda) if t.valor else '—' }}</td>

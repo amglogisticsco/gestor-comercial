@@ -236,3 +236,24 @@ def test_importar_excel_y_tarifas(cliente_http):
         assert Cliente.query.count() == 2 and Tarifa.query.count() == 2
     for url in ["/tarifas/", "/tarifas/?estado=vencida", "/tarifas/nueva", "/tarifas/1", "/cotizaciones/nueva", "/servicios/", "/"]:
         assert c.get(url).status_code == 200, url
+
+
+def test_tarifas_por_cliente_y_proceso(cliente_http):
+    from app.models import Servicio, Tarifa, buscar_tarifa
+    c = cliente_http
+    with c.app.app_context():
+        ag = Servicio.query.filter_by(codigo="SER-005").one()  # Agenciamiento aduanero
+        a = Cliente(razon_social="Cliente A"); b = Cliente(razon_social="Cliente B")
+        db.session.add_all([a, b]); db.session.flush()
+        general = Tarifa(codigo="T-GEN", servicio=ag, valor=450, moneda="USD")
+        especial = Tarifa(codigo="T-A-EXPO", servicio=ag, valor=380, moneda="USD", cliente_id=a.id, proceso="Exportación")
+        impo = Tarifa(codigo="T-IMPO", servicio=ag, valor=600, moneda="USD", proceso="Importación")
+        db.session.add_all([general, especial, impo]); db.session.commit()
+        # Cliente A exportando: su tarifa especial
+        assert buscar_tarifa(ag.id, cliente_id=a.id, proceso="Exportación").codigo == "T-A-EXPO"
+        # Cliente B nunca recibe la tarifa especial de A
+        assert buscar_tarifa(ag.id, cliente_id=b.id, proceso="Exportación").codigo == "T-GEN"
+        # Importación: la tarifa del proceso
+        assert buscar_tarifa(ag.id, cliente_id=b.id, proceso="Importación").codigo == "T-IMPO"
+        # Cliente A importando: no aplica su tarifa de exportación
+        assert buscar_tarifa(ag.id, cliente_id=a.id, proceso="Importación").codigo == "T-IMPO"

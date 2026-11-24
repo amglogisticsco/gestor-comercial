@@ -155,6 +155,14 @@ def importar(archivo, incluir_cotizaciones=True):
                 db.session.add(tarifa)
                 resumen["tarifas"] += 1
             tarifa.servicio = servicio
+            id_cliente = _texto(fila.get("id cliente") or fila.get("cliente"))
+            if id_cliente:  # columna opcional para tarifas especiales por cliente
+                especial = mapa_clientes.get(id_cliente) or Cliente.query.filter(
+                    (Cliente.codigo == id_cliente) | Cliente.razon_social.ilike(id_cliente)).first()
+                tarifa.cliente_id = especial.id if especial else None
+            proceso = _texto(fila.get("proceso"))
+            if proceso:
+                tarifa.proceso = proceso
             tarifa.origen, tarifa.destino, tarifa.proveedor = origen, destino, proveedor
             tarifa.moneda = (_texto(fila.get("moneda")) or "USD").upper()[:3]
             tarifa.valor = valor

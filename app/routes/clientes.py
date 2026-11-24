@@ -72,7 +72,9 @@ def ver(ident):
 @bp.route("/<int:ident>/eliminar", methods=["POST"])
 def eliminar(ident):
     cliente = obtener(Cliente, ident)
-    if cliente.cotizaciones or cliente.anticipos or cliente.correos:
+    from ..models import Tarifa
+
+    if cliente.cotizaciones or cliente.anticipos or cliente.correos or Tarifa.query.filter_by(cliente_id=cliente.id).count():
         cliente.activo = False
         db.session.commit()
         flash("El cliente tiene historial, así que se marcó como inactivo en lugar de eliminarse.", "ok")

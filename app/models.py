@@ -491,7 +491,7 @@ DATOS_EMPRESA = {
     "direccion": "Transversal 42 No. 3-14 Piso 1",
     "ciudad": "Bogotá D.C.",
     "telefono": "+57 310 800 0481",
-    "email": "info@amglogisticsco.com",
+    "email": "comercial@amglogisticsco.com",
     "eslogan": "Soluciones integrales de transporte y logística",
     "datos_bancarios": "Cuenta de ahorros Davivienda N.º 108900181331\nA nombre de AMG LOGISTICS SAS",
     "pie_anticipo": "En el momento de realizar la transferencia, favor comunicarse con nosotros "

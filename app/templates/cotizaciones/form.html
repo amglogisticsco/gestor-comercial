@@ -170,12 +170,24 @@ function pintarControl(tr) {
   tr.querySelector('.control-tarifa').style.display = 'flex';
   const opciones = opcionesTarifa(idS);
   const actual = TARIFAS.find(x => String(x.id) === String(idT));
-  if (actual && !opciones.includes(actual)) opciones.unshift(actual);
-  sel.innerHTML = '<option value="">Sin tarifa (valor manual)</option>' +
-    opciones.map(t => '<option value="' + t.id + '"' + (String(t.id) === String(idT) ? ' selected' : '') + '>' + etiquetaTarifa(t) + '</option>').join('');
+  // Tarifas del mismo servicio para OTRO proceso (generales o de este cliente): se muestran aparte
+  const cli = document.getElementById('cliente').value;
+  const otras = TARIFAS.filter(x => String(x.servicio) === String(idS) && !opciones.includes(x)
+    && (!x.cliente || String(x.cliente) === cli));
+  const opt = t => '<option value="' + t.id + '"' + (String(t.id) === String(idT) ? ' selected' : '') + '>' + etiquetaTarifa(t) + '</option>';
+  sel.innerHTML = '<option value="">Sin tarifa (valor manual)</option>' + opciones.map(opt).join('') +
+    (otras.length ? '<optgroup label="Otras tarifas (otro proceso)">' + otras.map(opt).join('') + '</optgroup>' : '');
   const t = actual;
   const avisos = [];
-  if (!opciones.length) avisos.push('<span style="color:var(--alerta)">Sin tarifa registrada: digita el valor</span>');
+  if (!t && !opciones.length && otras.length) {
+    const procesos = [...new Set(otras.map(x => x.proceso || 'otro'))].join(', ');
+    avisos.push('<span style="color:var(--alerta)">Hay ' + otras.length + (otras.length === 1 ? ' tarifa' : ' tarifas') +
+      ' para ' + procesos + ': elígela arriba si aplica</span>');
+  } else if (!t && !opciones.length) {
+    avisos.push('<span style="color:var(--alerta)">Sin tarifa registrada: digita el valor</span>');
+  }
+  const pro = document.getElementById('proceso').value;
+  if (t && t.proceso && pro && t.proceso !== pro) avisos.push('<span style="color:var(--alerta)">tarifa de ' + t.proceso + '</span>');
   if (t && t.estado !== 'vigente') avisos.push('<span style="color:var(--error);font-weight:600">tarifa ' + ESTADO_TXT[t.estado] + (t.hasta ? ' (hasta ' + t.hasta + ')' : '') + '</span>');
   if (t && t.moneda !== document.getElementById('moneda').value) avisos.push('<span style="color:var(--error);font-weight:600">la tarifa está en ' + t.moneda + '</span>');
   if (t && !avisos.length) avisos.push('<span style="color:var(--ok)">✓</span>');

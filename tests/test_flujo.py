@@ -322,3 +322,41 @@ def test_directorio_proveedores_y_agentes(cliente_http):
                 f"/directorio/proveedores/{agente_id}", f"/directorio/proveedores/{agente_id}/editar",
                 "/directorio/proveedores/nuevo?agente=1", "/tarifas/nueva", f"/cotizaciones/{cot_id}/editar", "/correos/"]:
         assert c.get(url).status_code == 200, url
+
+
+def test_eliminar_definitivo_y_reactivar(cliente_http):
+    from app.models import Anticipo, Correo, Cotizacion, ItemCotizacion, Usuario
+    c = cliente_http
+    post(c, "/setup", {"empresa": "AMG", "nombre": "David", "email": "d@amg.test", "clave": "clave-segura"})
+    with c.app.app_context():
+        cli = Cliente(razon_social="Cliente de prueba", email="x@test.co")
+        db.session.add(cli); db.session.flush()
+        cot = Cotizacion(numero="COT-0001", cliente=cli, estado="enviada")
+        cot.items = [ItemCotizacion(descripcion="Flete", precio=100)]
+        db.session.add(cot); db.session.flush()
+        db.session.add(Anticipo(numero="SF-2026-0001", cliente=cli, cotizacion=cot, monto=50, estado="enviada"))
+        db.session.add(Correo(cliente=cli, tipo="cotizacion", adjunto_tipo="cotizacion", adjunto_id=cot.id, estado="enviado"))
+        u = Usuario(nombre="Laura", email="l@amg.test", rol="usuario"); u.set_password("clave-laura")
+        db.session.add(u); db.session.commit()
+        cid = cli.id
+    # Sin confirmación: solo inactiva
+    post(c, f"/clientes/{cid}/eliminar", {}, desde=f"/clientes/{cid}")
+    with c.app.app_context():
+        assert db.session.get(Cliente, cid).activo is False
+    # Reactivar desde el formulario de edición
+    post(c, f"/clientes/{cid}/editar", {"razon_social": "Cliente de prueba", "activo": "1"})
+    with c.app.app_context():
+        assert db.session.get(Cliente, cid).activo is True
+    # Un usuario normal no puede borrar definitivamente
+    post(c, "/logout", {}, desde="/")
+    post(c, "/login", {"email": "l@amg.test", "clave": "clave-laura"})
+    datos = {"confirmar": "ELIMINAR", "_csrf": csrf(c, f"/clientes/{cid}")}
+    assert c.post(f"/clientes/{cid}/eliminar", data=datos).status_code == 403
+    # El administrador sí, y se borra todo lo relacionado
+    post(c, "/logout", {}, desde="/")
+    post(c, "/login", {"email": "d@amg.test", "clave": "clave-segura"})
+    r = post(c, f"/clientes/{cid}/eliminar", {"confirmar": "ELIMINAR"}, desde=f"/clientes/{cid}")
+    assert "eliminado definitivamente" in r.get_data(as_text=True)
+    with c.app.app_context():
+        assert db.session.get(Cliente, cid) is None
+        assert Cotizacion.query.count() == Anticipo.query.count() == Correo.query.count() == 0

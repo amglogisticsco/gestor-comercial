@@ -82,8 +82,13 @@
     {% if p.notas %}<div class="tarjeta"><div class="tarjeta-cab"><h2>Notas</h2></div><div class="tarjeta-cuerpo">{{ p.notas|parrafos }}</div></div>{% endif %}
     <p class="small muted" style="margin-top:12px">{{ 'Aparece en la cotización del cliente como naviera / aerolínea.' if p.es_transportista else 'Proveedor interno: no aparece en la cotización del cliente.' }}</p>
     <div style="text-align:right">
+      {% set tiene_historial = p.tarifas or correos %}
       <form class="en-linea" method="post" action="{{ url_for('directorio.eliminar', ident=p.id) }}">{{ csrf() }}
-        <button class="btn btn-sm btn-peligro" type="submit" data-confirmar="¿Eliminar del directorio? Si tiene tarifas o correos, quedará inactivo.">Eliminar</button></form>
+        <button class="btn btn-sm btn-peligro" type="submit" data-confirmar="{{ '¿Marcar como inactivo? Sus tarifas y correos se conservan.' if tiene_historial else '¿Eliminar del directorio?' }}">{{ 'Inactivar' if tiene_historial else 'Eliminar' }}</button></form>
+      {% if tiene_historial and current_user.es_admin %}
+      <form class="en-linea" method="post" action="{{ url_for('directorio.eliminar', ident=p.id) }}">{{ csrf() }}<input type="hidden" name="confirmar" value="">
+        <button class="btn btn-sm btn-peligro" type="submit" data-escribir="Se eliminará «{{ p.nombre }}» y sus solicitudes enviadas. Sus {{ p.tarifas|length }} tarifas se conservan sin proveedor.">Eliminar definitivamente</button></form>
+      {% endif %}
     </div>
   </div>
 </div>

@@ -56,6 +56,15 @@
   document.querySelectorAll('[data-confirmar]').forEach(function (el) {
     el.addEventListener('click', function (ev) { if (!confirm(el.dataset.confirmar)) ev.preventDefault(); });
   });
+  // Borrado definitivo: hay que escribir ELIMINAR
+  document.querySelectorAll('[data-escribir]').forEach(function (el) {
+    el.addEventListener('click', function (ev) {
+      var r = prompt(el.dataset.escribir + '\n\nEsta acción no se puede deshacer. Escribe ELIMINAR para confirmar:');
+      if ((r || '').trim().toUpperCase() !== 'ELIMINAR') { ev.preventDefault(); return; }
+      var campo = el.form.querySelector('[name=confirmar]');
+      if (campo) campo.value = 'ELIMINAR';
+    });
+  });
 </script>
 {% block scripts %}{% endblock %}
 </body>

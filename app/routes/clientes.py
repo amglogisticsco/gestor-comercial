@@ -1,7 +1,8 @@
 import csv
 import io
 
-from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
+from flask_login import current_user
 from sqlalchemy import or_
 
 from .. import db
@@ -73,7 +74,18 @@ def ver(ident):
 def eliminar(ident):
     cliente = obtener(Cliente, ident)
     from ..models import Tarifa
+    from ..services import borrado
 
+    if request.form.get("confirmar") == "ELIMINAR":
+        if not current_user.es_admin:
+            abort(403)
+        r = borrado.resumen_cliente(cliente)
+        nombre = cliente.razon_social
+        borrado.eliminar_cliente(cliente)
+        db.session.commit()
+        flash(f"«{nombre}» eliminado definitivamente junto con {r['cotizaciones']} cotizaciones, "
+              f"{r['anticipos']} solicitudes de fondos, {r['correos']} correos y {r['tarifas']} tarifas especiales.", "ok")
+        return redirect(url_for("directorio.inicio"))
     if cliente.cotizaciones or cliente.anticipos or cliente.correos or Tarifa.query.filter_by(cliente_id=cliente.id).count():
         cliente.activo = False
         db.session.commit()

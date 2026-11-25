@@ -69,8 +69,14 @@
     <div class="tarjeta"><div class="tarjeta-cab"><h2>Notas</h2></div><div class="tarjeta-cuerpo">{{ cliente.notas|parrafos }}</div></div>
     {% endif %}
     <div style="margin-top:14px;text-align:right">
+      {% set tiene_historial = cliente.cotizaciones or cliente.anticipos or cliente.correos %}
       <form class="en-linea" method="post" action="{{ url_for('clientes.eliminar', ident=cliente.id) }}">{{ csrf() }}
-        <button class="btn btn-sm btn-peligro" type="submit" data-confirmar="¿Eliminar este cliente? Si tiene historial, se marcará como inactivo.">Eliminar cliente</button></form>
+        <button class="btn btn-sm btn-peligro" type="submit" data-confirmar="{{ '¿Marcar este cliente como inactivo? Su historial se conserva.' if tiene_historial else '¿Eliminar este cliente?' }}">{{ 'Inactivar' if tiene_historial else 'Eliminar cliente' }}</button></form>
+      {% if tiene_historial and current_user.es_admin %}
+      <form class="en-linea" method="post" action="{{ url_for('clientes.eliminar', ident=cliente.id) }}">{{ csrf() }}<input type="hidden" name="confirmar" value="">
+        <button class="btn btn-sm btn-peligro" type="submit" style="border-color:var(--error)"
+          data-escribir="Se eliminará «{{ cliente.razon_social }}» con {{ cliente.cotizaciones|length }} cotizaciones, {{ cliente.anticipos|length }} solicitudes de fondos y {{ cliente.correos|length }} correos.">Eliminar definitivamente</button></form>
+      {% endif %}
     </div>
   </div>
 </div>

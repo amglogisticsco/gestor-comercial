@@ -166,12 +166,17 @@ def duplicar(ident):
 @bp.route("/<int:ident>/eliminar", methods=["POST"])
 def eliminar(ident):
     cot = obtener(Cotizacion, ident)
-    if cot.estado != "borrador" or cot.anticipos:
-        flash("Solo se pueden eliminar cotizaciones en borrador y sin anticipos.", "error")
+    simple = cot.estado == "borrador" and not cot.anticipos
+    admin_confirma = current_user.es_admin and request.form.get("confirmar") == "ELIMINAR"
+    if not simple and not admin_confirma:
+        flash("Solo un administrador puede eliminar cotizaciones enviadas o con solicitudes de fondos.", "error")
         return redirect(url_for("cotizaciones.ver", ident=cot.id))
-    db.session.delete(cot)
+    from ..services import borrado
+
+    numero = cot.numero
+    borrado.eliminar_cotizacion(cot)
     db.session.commit()
-    flash("Cotización eliminada.", "ok")
+    flash(f"Cotización {numero} eliminada.", "ok")
     return redirect(url_for("cotizaciones.lista"))
 
 

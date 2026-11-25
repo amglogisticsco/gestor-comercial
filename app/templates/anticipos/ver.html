@@ -47,6 +47,15 @@
         <select name="estado">{% for k, v in estados.items() %}<option value="{{ k }}" {{ 'selected' if k == a.estado }}>{{ v }}</option>{% endfor %}</select>
         <button class="btn" type="submit">Actualizar</button>
       </form>
+      <div style="text-align:right;margin-top:12px">
+        {% if a.estado in ('pendiente', 'anulada') %}
+        <form class="en-linea" method="post" action="{{ url_for('anticipos.eliminar', ident=a.id) }}">{{ csrf() }}
+          <button class="btn btn-sm btn-peligro" type="submit" data-confirmar="¿Eliminar la solicitud {{ a.numero }}?">Eliminar</button></form>
+        {% elif current_user.es_admin %}
+        <form class="en-linea" method="post" action="{{ url_for('anticipos.eliminar', ident=a.id) }}">{{ csrf() }}<input type="hidden" name="confirmar" value="">
+          <button class="btn btn-sm btn-peligro" type="submit" data-escribir="Se eliminará la solicitud de fondos {{ a.numero }} con sus correos.">Eliminar definitivamente</button></form>
+        {% endif %}
+      </div>
     </div></div>
     <div class="tarjeta"><div class="tarjeta-cab"><h2>Operación</h2></div><div class="tarjeta-cuerpo"><dl class="datos">
       <dt>Tipo</dt><dd>{{ [a.tipo_operacion, a.modalidad]|select|join(' · ') or '—' }}</dd>

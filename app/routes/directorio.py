@@ -1,5 +1,6 @@
 """Directorio: clientes, proveedores y agentes internacionales en un solo lugar."""
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask_login import current_user
 from sqlalchemy import or_
 
 from .. import db
@@ -94,7 +95,16 @@ def pedir_cotizacion(ident):
 def eliminar(ident):
     p = obtener(Proveedor, ident)
     from ..models import Correo
+    from ..services import borrado
 
+    if request.form.get("confirmar") == "ELIMINAR":
+        if not current_user.es_admin:
+            abort(403)
+        nombre, n_tarifas = p.nombre, len(p.tarifas)
+        borrado.eliminar_proveedor(p)
+        db.session.commit()
+        flash(f"«{nombre}» eliminado definitivamente. Sus {n_tarifas} tarifas se conservaron sin proveedor asignado.", "ok")
+        return redirect(url_for("directorio.inicio"))
     if p.tarifas or Correo.query.filter_by(proveedor_id=p.id).count():
         p.activo = False
         db.session.commit()

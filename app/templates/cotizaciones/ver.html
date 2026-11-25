@@ -75,6 +75,9 @@
       <form class="en-linea" method="post" action="{{ url_for('cotizaciones.duplicar', ident=c.id) }}">{{ csrf() }}<button class="btn btn-sm" type="submit">{{ icono('copiar') }} Duplicar</button></form>
       {% if c.estado == 'borrador' and not c.anticipos %}
       <form class="en-linea" method="post" action="{{ url_for('cotizaciones.eliminar', ident=c.id) }}">{{ csrf() }}<button class="btn btn-sm btn-peligro" type="submit" data-confirmar="¿Eliminar esta cotización?">Eliminar</button></form>
+      {% elif current_user.es_admin %}
+      <form class="en-linea" method="post" action="{{ url_for('cotizaciones.eliminar', ident=c.id) }}">{{ csrf() }}<input type="hidden" name="confirmar" value="">
+        <button class="btn btn-sm btn-peligro" type="submit" data-escribir="Se eliminará la cotización {{ c.numero }}{% if c.anticipos %} y sus {{ c.anticipos|length }} solicitudes de fondos{% endif %}, con sus correos.">Eliminar definitivamente</button></form>
       {% endif %}
     </div>
   </div>

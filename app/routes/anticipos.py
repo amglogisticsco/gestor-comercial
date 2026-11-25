@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
+from flask_login import current_user
 
 from .. import db
 from ..models import (ESTADOS_ANTICIPO, GRUPOS_ANTICIPO, MODALIDADES, TIPOS_OPERACION, Anticipo, Cliente,
@@ -143,3 +144,19 @@ def cambiar_estado(ident):
 def preparar_correo(ident):
     borrador = servicio_correo.borrador_anticipo(obtener(Anticipo, ident))
     return redirect(url_for("correos.editar", ident=borrador.id))
+
+
+@bp.route("/<int:ident>/eliminar", methods=["POST"])
+def eliminar(ident):
+    a = obtener(Anticipo, ident)
+    simple = a.estado in ("pendiente", "anulada")
+    if not simple and not (current_user.es_admin and request.form.get("confirmar") == "ELIMINAR"):
+        flash("Solo un administrador puede eliminar solicitudes enviadas o pagadas.", "error")
+        return redirect(url_for("anticipos.ver", ident=a.id))
+    from ..services import borrado
+
+    numero = a.numero
+    borrado.eliminar_anticipo(a)
+    db.session.commit()
+    flash(f"Solicitud {numero} eliminada.", "ok")
+    return redirect(url_for("anticipos.lista"))

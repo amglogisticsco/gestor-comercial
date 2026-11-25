@@ -6,7 +6,7 @@
 <div class="encabezado">
   <div>
     <div class="migas"><a href="{{ url_for('directorio.inicio', ver='agentes' if p.es_agente else 'proveedores') }}">Directorio</a></div>
-    <div class="fila-persona"><div class="avatar" style="width:44px;height:44px;font-size:15px">{{ iniciales(p.nombre) }}</div>
+    <div class="fila-persona"><div class="avatar {{ 'tono-agentes' if p.es_agente else 'tono-proveedores' }}" style="width:44px;height:44px;font-size:15px">{{ iniciales(p.nombre) }}</div>
       <div><h1>{{ p.nombre }}</h1>
       <p style="margin:0">{{ p.codigo }} · <span class="badge {{ 'b-enviada' if p.es_transportista else 'b-borrador' }}">{{ p.tipo }}</span>{% if p.red %} · {{ p.red }}{% endif %}{% if not p.activo %} · Inactivo{% endif %}</p></div></div>
   </div>

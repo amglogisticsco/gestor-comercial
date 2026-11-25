@@ -230,3 +230,16 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .tabla .principal-celda { white-space: nowrap; }
 .tabla.items { table-layout: fixed; min-width: 880px; }
 .tabla.items td { overflow: hidden; }
+
+/* Directorio: un color por tipo de contacto */
+.tono-clientes { --tono: #2563EB; --tono-suave: #EAF1FE; }
+.tono-proveedores { --tono: #16A34A; --tono-suave: #E7F6EC; }
+.tono-agentes { --tono: var(--acento); --tono-suave: #FDECEC; }
+.btn.tono-clientes, .btn.tono-proveedores, .btn.tono-agentes { background: var(--tono); border-color: var(--tono); color: #fff; }
+.btn.tono-clientes:hover, .btn.tono-proveedores:hover, .btn.tono-agentes:hover { filter: brightness(.92); background: var(--tono); }
+.tarjeta[class*="tono-"] { border-top: 3px solid var(--tono); }
+.tarjeta[class*="tono-"] .tarjeta-cab h2 { display: flex; align-items: center; gap: 8px; }
+.tarjeta[class*="tono-"] .tarjeta-cab h2::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--tono); }
+[class*="tono-"] .avatar, .avatar[class*="tono-"] { background: var(--tono-suave); color: var(--tono); }
+.pestanas a[class*="tono-"].activo { color: var(--tono); border-color: var(--tono); }
+.punto-tono { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--tono); margin-right: 6px; vertical-align: middle; }

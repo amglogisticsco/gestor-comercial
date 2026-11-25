@@ -5,9 +5,9 @@
 <div class="encabezado">
   <div><h1>Directorio</h1><p>Clientes, proveedores y agentes internacionales en un solo lugar.</p></div>
   <div class="acciones">
-    <a class="btn" href="{{ url_for('clientes.nuevo') }}">{{ icono('mas') }} Cliente</a>
-    <a class="btn" href="{{ url_for('directorio.editar') }}">{{ icono('mas') }} Proveedor</a>
-    <a class="btn btn-primario" href="{{ url_for('directorio.editar', agente=1) }}">{{ icono('mas') }} Agente internacional</a>
+    <a class="btn tono-clientes" href="{{ url_for('clientes.nuevo') }}">{{ icono('mas') }} Cliente</a>
+    <a class="btn tono-proveedores" href="{{ url_for('directorio.editar') }}">{{ icono('mas') }} Proveedor</a>
+    <a class="btn tono-agentes" href="{{ url_for('directorio.editar', agente=1) }}">{{ icono('mas') }} Agente internacional</a>
   </div>
 </div>
 
@@ -23,12 +23,12 @@
 
 <div class="pestanas" style="margin-top:16px">
   {% for clave, nombre, n in [('todos', 'Todos', clientes|length + proveedores|length + agentes|length), ('clientes', 'Clientes', clientes|length), ('proveedores', 'Proveedores', proveedores|length), ('agentes', 'Agentes internacionales', agentes|length)] %}
-  <a href="{{ url_for('directorio.inicio', ver=clave, q=q, inactivos=1 if inactivos else None) }}" class="{{ 'activo' if pestana == clave }}">{{ nombre }} <span class="small muted">{{ n }}</span></a>
+  <a href="{{ url_for('directorio.inicio', ver=clave, q=q, inactivos=1 if inactivos else None) }}" class="{{ 'activo' if pestana == clave }} {{ 'tono-' ~ clave if clave != 'todos' }}">{% if clave != 'todos' %}<span class="punto-tono tono-{{ clave }}"></span>{% endif %}{{ nombre }} <span class="small muted">{{ n }}</span></a>
   {% endfor %}
 </div>
 
 {% if pestana in ('todos', 'clientes') %}
-<div class="tarjeta">
+<div class="tarjeta tono-clientes">
   <div class="tarjeta-cab"><h2>Clientes</h2><a class="small" href="{{ url_for('clientes.lista') }}">Ver lista completa</a></div>
   {% if clientes %}
   <div class="tabla-envoltura"><table class="tabla">
@@ -47,7 +47,7 @@
 {% endif %}
 
 {% for titulo, lista, clave in [('Proveedores', proveedores, 'proveedores'), ('Agentes internacionales', agentes, 'agentes')] if pestana in ('todos', clave) %}
-<div class="tarjeta">
+<div class="tarjeta tono-{{ clave }}">
   <div class="tarjeta-cab"><h2>{{ titulo }}</h2></div>
   {% if lista %}
   <div class="tabla-envoltura"><table class="tabla">

@@ -5,7 +5,7 @@
 <div class="encabezado">
   <div>
     <div class="migas"><a href="{{ url_for('clientes.lista') }}">Clientes</a></div>
-    <div class="fila-persona"><div class="avatar" style="width:44px;height:44px;font-size:15px">{{ iniciales(cliente.razon_social) }}</div>
+    <div class="fila-persona"><div class="avatar tono-clientes" style="width:44px;height:44px;font-size:15px">{{ iniciales(cliente.razon_social) }}</div>
       <div><h1>{{ cliente.razon_social }}</h1>
       <p style="margin:0">{{ cliente.codigo }} · {% if cliente.nit %}NIT {{ cliente.nit }} · {% endif %}{{ cliente.ciudad or '' }}{% if not cliente.activo %} · <span class="badge b-borrador">Inactivo</span>{% endif %}</p></div></div>
   </div>

@@ -1,11 +1,22 @@
+{% set emp = empresa_global() %}
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Plataforma interna de gestión comercial de {{ emp.nombre }}. Acceso exclusivo para colaboradores.">
   <title>{% block titulo %}{% endblock %}</title>
+  <link rel="icon" href="{{ url_for('configuracion.logo') }}">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <style>
+    :root { --marca: {{ emp.color or '#373435' }}; --marca-2: #1f1d1e; --acento: {{ emp.color_acento or '#ED3237' }}; }
+    .acceso .tarjeta { border-top: 4px solid var(--acento); }
+    .acceso-pie { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--borde); font-size: 12px; color: var(--texto-3); text-align: center; line-height: 1.6; }
+    .acceso-pie a { color: var(--texto-2); }
+    .acceso-aviso { margin: 0 0 20px; font-size: 13px; color: var(--texto-2); }
+  </style>
 </head>
 <body>
 <div class="acceso">
@@ -14,6 +25,11 @@
       {% for cat, msg in mensajes %}<div class="alerta alerta-{{ cat }}">{{ msg }}</div>{% endfor %}
     {% endwith %}
     {% block contenido %}{% endblock %}
+    <div class="acceso-pie">
+      Plataforma interna de <strong>{{ emp.nombre }}</strong>{% if emp.nit %} · NIT {{ emp.nit }}{% endif %}<br>
+      Acceso exclusivo para colaboradores autorizados.<br>
+      {% if emp.web %}<a href="{{ emp.web }}">{{ (emp.web or '')|replace('https://', '')|replace('http://', '')|trim('/') }}</a>{% endif %}
+    </div>
   </div>
 </div>
 </body>

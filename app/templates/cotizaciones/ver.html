@@ -57,7 +57,7 @@
 
     <div class="tarjeta"><div class="tarjeta-cab"><h2>Datos generales</h2></div><div class="tarjeta-cuerpo"><dl class="datos">
       {% if c.asunto %}<dt>Operación</dt><dd>{{ c.asunto }}</dd>{% endif %}
-      {% if c.tarifa_base %}<dt>Tarifa base</dt><dd><a href="{{ url_for('tarifas.editar', ident=c.tarifa_base.id) }}">{{ c.tarifa_base.codigo }}</a>{% if c.tarifa_base.estado != 'vigente' %} <span class="badge b-error">{{ c.tarifa_base.estado|replace('_', ' ') }}</span>{% endif %}</dd>{% endif %}
+      {% if c.tarifa_base %}<dt>Flete principal</dt><dd><a href="{{ url_for('tarifas.editar', ident=c.tarifa_base.id) }}">{{ c.tarifa_base.codigo }}</a>{% if c.tarifa_base.estado != 'vigente' %} <span class="badge b-error">{{ c.tarifa_base.estado|replace('_', ' ') }}</span>{% endif %}</dd>{% endif %}
       {% if c.ejecutivo %}<dt>Ejecutivo</dt><dd>{{ c.ejecutivo }}</dd>{% endif %}
       {% if c.condicion_pago %}<dt>Condición</dt><dd>{{ c.condicion_pago }}</dd>{% endif %}
       <dt>Moneda</dt><dd>{{ c.moneda }}</dd>

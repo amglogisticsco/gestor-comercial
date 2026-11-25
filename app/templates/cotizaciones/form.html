@@ -34,10 +34,10 @@
     <div class="seccion-form">
       <h3>Datos del servicio <span class="opc" style="text-transform:none;letter-spacing:0;font-weight:400">· solo aparece en el PDF lo que llenes</span></h3>
       <div class="form-grid">
-        <div class="c-12"><label>Tarifa base <span class="opc">(opcional: llena proveedor, origen, destino y moneda)</span></label>
+        <div class="c-12"><label>Flete principal <span class="opc">(opcional: elige la tarifa de flete marítimo o aéreo; llena naviera/aerolínea, origen, destino y moneda)</span></label>
           <select name="tarifa_id" id="tarifa-base">
-            <option value="">Sin tarifa base</option>
-            {% for t in tarifas %}<option value="{{ t.id }}" {{ 'selected' if t.id == c.tarifa_id }}>{{ t.etiqueta }}{% if t.valor %} · {{ t.valor|moneda(t.moneda) }}{% endif %}{% if t.estado != 'vigente' %} · ⚠ {{ {'vencida':'vencida','futura':'aún no vigente','sin_valor':'sin valor'}[t.estado] }}{% endif %}</option>{% endfor %}
+            <option value="">Sin flete principal</option>
+            {% for t in tarifas if t.es_flete or t.id == c.tarifa_id %}<option value="{{ t.id }}" {{ 'selected' if t.id == c.tarifa_id }}>{{ t.etiqueta }}{% if t.valor %} · {{ t.valor|moneda(t.moneda) }}{% endif %}{% if t.estado != 'vigente' %} · ⚠ {{ {'vencida':'vencida','futura':'aún no vigente','sin_valor':'sin valor'}[t.estado] }}{% endif %}</option>{% endfor %}
           </select>
           <div class="ayuda" id="aviso-tarifa"></div></div>
         <div class="c-3"><label>Origen</label><input type="text" name="origen" id="origen" value="{{ c.origen or '' }}" placeholder="Bogotá, CO"></div>
@@ -76,6 +76,8 @@
         {% for s in servicios %}<option value="{{ s.id }}">{{ s.nombre }}</option>{% endfor %}
       </select>
       <button class="btn" type="button" onclick="agregarFila()">{{ icono('mas') }} Línea libre</button>
+      <button class="btn btn-primario" type="button" id="btn-tarifas-cliente">{{ icono('mas') }} Agregar tarifas del cliente</button>
+      <span class="small muted" id="aviso-masivo" style="align-self:center"></span>
     </div>
     <div class="totales num">
       <div><span class="muted">Subtotal</span><span id="t-sub">0</span></div>
@@ -123,7 +125,7 @@ const EXISTENTES = [
   {% for i in c.items %}{{ {"servicio": i.servicio_id or "", "tarifa": i.tarifa_id or "", "descripcion": i.descripcion, "cantidad": i.cantidad, "unidad": i.unidad, "precio": i.precio, "iva": i.aplica_iva, "obs": i.observacion or ""}|tojson }},{% endfor %}
 ];
 const TARIFAS = [
-  {% for t in tarifas %}{{ {"id": t.id, "codigo": t.codigo, "servicio": t.servicio_id, "origen": t.origen, "destino": t.destino, "proveedor": t.proveedor, "cliente": t.cliente_id or "", "cliente_nombre": t.cliente.razon_social if t.cliente else "", "proceso": t.proceso or "", "moneda": t.moneda, "valor": t.valor, "estado": t.estado, "hasta": t.vigencia_hasta|fecha if t.vigencia_hasta else ""}|tojson }},{% endfor %}
+  {% for t in tarifas %}{{ {"id": t.id, "codigo": t.codigo, "servicio": t.servicio_id, "origen": t.origen, "destino": t.destino, "proveedor": t.proveedor, "flete": t.es_flete, "cliente": t.cliente_id or "", "cliente_nombre": t.cliente.razon_social if t.cliente else "", "proceso": t.proceso or "", "moneda": t.moneda, "valor": t.valor, "estado": t.estado, "hasta": t.vigencia_hasta|fecha if t.vigencia_hasta else ""}|tojson }},{% endfor %}
 ];
 const ESTADO_TXT = {vigente: 'vigente', vencida: 'VENCIDA', futura: 'aún no vigente', sin_valor: 'SIN VALOR'};
 const norm = t => (t || '').toUpperCase().replace(/\s+/g, ' ').trim();
@@ -222,6 +224,7 @@ document.getElementById('agregar-servicio').addEventListener('change', e => {
   agregarFila({servicio: e.target.value, tarifa: t ? t.id : '', descripcion: s.nombre,
                cantidad: 1, unidad: s.unidad, precio: t && t.valor ? t.valor : s.precio, iva: s.iva,
                obs: t && t.estado !== 'vigente' ? 'Sujeto a confirmación' : ''});
+  if (t && t.flete && !document.getElementById('transportista').value) document.getElementById('transportista').value = t.proveedor;
   e.target.value = '';
 });
 document.getElementById('iva_pct').addEventListener('input', recalcular);
@@ -252,6 +255,34 @@ document.getElementById('tarifa-base').addEventListener('change', e => {
     agregarFila({servicio: t.servicio, tarifa: t.id, descripcion: s.nombre || t.codigo, cantidad: 1, unidad: s.unidad, precio: t.valor, iva: s.iva});
   }
   aviso.innerHTML = t.estado === 'vigente' ? '' : '<span style="color:var(--error);font-weight:600">Atención: esta tarifa está ' + ESTADO_TXT[t.estado] + '.</span>';
+  recalcular();
+});
+document.getElementById('btn-tarifas-cliente').addEventListener('click', () => {
+  // Agrega, una por servicio, las tarifas que aplican: las del cliente elegido (y su proceso) y las
+  // generales de la misma ruta. Omite los servicios que ya están en la cotización.
+  const aviso = document.getElementById('aviso-masivo');
+  const cli = document.getElementById('cliente').value;
+  if (!cli) { aviso.innerHTML = '<span style="color:var(--error)">Primero elige el cliente.</span>'; return; }
+  const o = norm(document.getElementById('origen').value), d = norm(document.getElementById('destino').value);
+  const pro = document.getElementById('proceso').value;
+  const presentes = new Set([...cuerpo.querySelectorAll('[name=item_servicio]')].map(i => String(i.value)).filter(Boolean));
+  const servicios = new Set(TARIFAS.filter(t =>
+      (!t.proceso || !pro || t.proceso === pro) &&
+      (String(t.cliente) === cli || (!t.cliente && (o || d) && norm(t.origen) === o && norm(t.destino) === d))
+    ).map(t => String(t.servicio)));
+  let agregadas = 0;
+  cuerpo.querySelectorAll('tr').forEach(tr => { if (!tr.querySelector('[name=item_descripcion]').value.trim()) tr.remove(); });
+  servicios.forEach(id => {
+    if (presentes.has(id)) return;
+    const t = buscarTarifa(id), s = CATALOGO[id] || {};
+    if (!t) return;
+    agregarFila({servicio: id, tarifa: t.id, descripcion: s.nombre || t.codigo, cantidad: 1, unidad: s.unidad,
+                 precio: t.valor, iva: s.iva, obs: t.estado !== 'vigente' ? 'Sujeto a confirmación' : ''});
+    if (t.flete && !document.getElementById('transportista').value) document.getElementById('transportista').value = t.proveedor;
+    agregadas++;
+  });
+  aviso.textContent = agregadas ? 'Se agregaron ' + agregadas + ' servicios.' : 'No hay más tarifas para este cliente, operación y ruta.';
+  if (!cuerpo.querySelector('tr')) agregarFila({cantidad: 1, iva: false});
   recalcular();
 });
 EXISTENTES.length ? EXISTENTES.forEach(agregarFila) : agregarFila({cantidad: 1, iva: false});

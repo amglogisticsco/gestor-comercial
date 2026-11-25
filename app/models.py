@@ -213,6 +213,15 @@ class Tarifa(db.Model):
         return " → ".join(p for p in (self.origen, self.destino) if p)
 
     @property
+    def es_flete(self):
+        """Flete marítimo o aéreo: define la naviera/aerolínea de la cotización."""
+        if not self.servicio:
+            return False
+        categoria, nombre = _norm(self.servicio.categoria), _norm(self.servicio.nombre)
+        return categoria in ("MARÍTIMO", "AÉREO", "MARITIMO", "AEREO") or (
+            "FLETE" in nombre and "TERRESTRE" not in nombre)
+
+    @property
     def etiqueta(self):
         partes = [self.codigo, self.servicio.nombre if self.servicio else "", self.ruta, self.proveedor,
                   self.cliente.razon_social if self.cliente else "", self.proceso]

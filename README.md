@@ -68,7 +68,7 @@ El repositorio incluye `Dockerfile` y `render.yaml`:
 2. Elige **New → Blueprint**, selecciona `gestor-comercial` y pulsa **Apply**.
 3. Al terminar, Render te da un enlace del tipo `https://gestor-comercial-xxxx.onrender.com`.
 
-En el plan gratuito, la app se "duerme" tras 15 minutos sin uso y tarda unos 50 segundos en despertar. Además, **los datos se borran en cada nueva publicación o reinicio**. Sirve para pruebas. Para uso real se necesita un disco persistente (plan Starter, con `DATABASE_URL=sqlite:////var/data/gestor.db`) o una base de datos PostgreSQL.
+El servicio usa el plan **Starter** con un **disco de 1 GB** montado en `/var/data` (`DATA_DIR`): ahí viven la base de datos, el logo y los correos de prueba, así que los datos se conservan entre despliegues.
 
 ## Pruebas
 

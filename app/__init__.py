@@ -18,7 +18,8 @@ ENDPOINTS_ABIERTOS = {"auth.login", "auth.setup", "static", "configuracion.logo"
 def create_app(config_extra=None):
     load_dotenv()
     app = Flask(__name__, instance_relative_config=True)
-    instancia = Path(app.instance_path)
+    # DATA_DIR: carpeta persistente (en Render, el disco montado en /var/data)
+    instancia = Path(os.getenv("DATA_DIR") or app.instance_path)
     instancia.mkdir(parents=True, exist_ok=True)
 
     app.config.update(

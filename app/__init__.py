@@ -72,6 +72,12 @@ def create_app(config_extra=None):
             return redirect(url_for("auth.login", next=request.path))
         return None
 
+    @app.after_request
+    def sin_cache(respuesta):
+        if respuesta.mimetype == "text/html":
+            respuesta.headers["Cache-Control"] = "no-store, max-age=0"
+        return respuesta
+
     @app.context_processor
     def utilidades():
         def csrf_token():

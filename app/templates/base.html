@@ -56,6 +56,19 @@
   document.querySelectorAll('[data-confirmar]').forEach(function (el) {
     el.addEventListener('click', function (ev) { if (!confirm(el.dataset.confirmar)) ev.preventDefault(); });
   });
+  // Aviso si sales de un formulario con cambios sin guardar
+  (function () {
+    var sucio = false;
+    document.querySelectorAll('form[method=post]').forEach(function (f) {
+      if (f.querySelectorAll('input:not([type=hidden]), textarea, select').length < 3) return; // botones sueltos
+      f.addEventListener('input', function () { sucio = true; });
+      f.addEventListener('change', function () { sucio = true; });
+      f.addEventListener('submit', function () { sucio = false; });
+    });
+    window.addEventListener('beforeunload', function (e) {
+      if (sucio) { e.preventDefault(); e.returnValue = ''; }
+    });
+  })();
   // Borrado definitivo: hay que escribir ELIMINAR
   document.querySelectorAll('[data-escribir]').forEach(function (el) {
     el.addEventListener('click', function (ev) {

@@ -246,3 +246,4 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 details.fusionar > summary { list-style: none; cursor: pointer; }
 details.fusionar > summary::-webkit-details-marker { display: none; }
+.btn:disabled, .btn[disabled] { opacity: .45; cursor: not-allowed; pointer-events: none; }

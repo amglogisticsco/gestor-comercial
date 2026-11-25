@@ -19,28 +19,7 @@
         <td class="small">{{ s.grupo }}</td><td>{{ s.unidad }}</td><td class="der num">{{ s.precio|numero if s.precio else '—' }}</td>
         <td>{{ 'Sí' if s.aplica_iva else 'No' }}</td>
         <td>{% if s.activo %}<span class="badge b-aprobada">Activo</span>{% else %}<span class="badge b-borrador">Inactivo</span>{% endif %}</td>
-        <td class="der" style="white-space:nowrap">
-          {% if not n_tar and not n_items %}
-          <form class="en-linea" method="post" action="{{ url_for('servicios.eliminar', ident=s.id) }}">{{ csrf() }}
-            <button class="btn btn-sm btn-peligro" type="submit" data-confirmar="¿Eliminar el servicio «{{ s.nombre }}»?">Eliminar</button></form>
-          {% endif %}
-          {% if current_user.es_admin %}
-          <details class="fusionar" style="display:inline-block;vertical-align:top">
-            <summary class="btn btn-sm">Fusionar…</summary>
-            <form method="post" action="{{ url_for('servicios.eliminar', ident=s.id) }}" class="tarjeta" style="margin-top:8px;width:340px;padding:14px;text-align:left;white-space:normal">
-              {{ csrf() }}
-              <label>Pasar todo a este servicio y borrar «{{ s.nombre }}»:</label>
-              <select name="destino_id" required>
-                <option value="">Elige el servicio que se queda…</option>
-                {% for g in gemelos.get(s.id, []) %}<option value="{{ g.id }}" selected>{{ g.codigo }} · {{ g.nombre }} (posible duplicado)</option>{% endfor %}
-                {% for o in servicios if o.id != s.id and o not in gemelos.get(s.id, []) %}<option value="{{ o.id }}">{{ o.codigo }} · {{ o.nombre }}</option>{% endfor %}
-              </select>
-              <div class="ayuda">Sus {{ n_tar }} tarifas y {{ n_items }} líneas de cotización pasarán al servicio elegido.</div>
-              <button class="btn btn-sm btn-peligro" style="margin-top:10px" type="submit" data-confirmar="¿Fusionar «{{ s.nombre }}» con el servicio elegido? Esta acción no se puede deshacer.">Fusionar y borrar</button>
-            </form>
-          </details>
-          {% endif %}
-          <button class="btn btn-sm" type="button" onclick='editarServicio({{ {"id": s.id, "nombre": s.nombre, "descripcion": s.descripcion, "unidad": s.unidad, "precio": s.precio, "aplica_iva": s.aplica_iva, "activo": s.activo, "grupo": s.grupo, "categoria": s.categoria}|tojson }})'>Editar</button></td></tr>
+        <td class="der"><button class="btn btn-sm" type="button" onclick='editarServicio({{ {"id": s.id, "nombre": s.nombre, "descripcion": s.descripcion, "unidad": s.unidad, "precio": s.precio, "aplica_iva": s.aplica_iva, "activo": s.activo, "grupo": s.grupo, "categoria": s.categoria, "tarifas": n_tar, "items": n_items, "gemelos": gemelos.get(s.id, [])|map(attribute='id')|list}|tojson }})'>Editar</button></td></tr>
     {% endfor %}
     </tbody></table></div>
 </div>
@@ -60,6 +39,30 @@
   </div></div>
   <div class="pie-form"><button class="btn" type="reset" onclick="limpiarServicio()">Limpiar</button><button class="btn btn-primario" type="submit">Guardar servicio</button></div>
 </form>
+<div class="tarjeta" id="zona-borrar" style="display:none;border-top:3px solid var(--error)">
+  <div class="tarjeta-cab"><h2>Eliminar o fusionar «<span class="zb-nombre"></span>»</h2></div>
+  <div class="tarjeta-cuerpo">
+    <p class="small muted" id="zb-uso" style="margin-top:0"></p>
+    <div class="form-grid">
+      <form method="post" class="c-6" id="zb-eliminar">{{ csrf() }}
+        <label>Eliminar</label>
+        <p class="ayuda" style="margin:0 0 10px">Solo si no se usa en ninguna tarifa ni cotización.</p>
+        <button class="btn btn-peligro" type="submit" id="zb-btn-eliminar" data-confirmar="¿Eliminar este servicio?">Eliminar servicio</button>
+      </form>
+      {% if current_user.es_admin %}
+      <form method="post" class="c-6" id="zb-fusionar">{{ csrf() }}
+        <label>Fusionar con el servicio que se queda</label>
+        <select name="destino_id" id="zb-destino" required>
+          <option value="">Elige el servicio que se queda…</option>
+          {% for o in servicios %}<option value="{{ o.id }}">{{ o.codigo }} · {{ o.nombre }}</option>{% endfor %}
+        </select>
+        <p class="ayuda">Sus tarifas y líneas de cotización pasan al servicio elegido y este se borra.</p>
+        <button class="btn btn-peligro" type="submit" data-confirmar="¿Fusionar y borrar este servicio? Esta acción no se puede deshacer.">Fusionar y borrar</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -74,9 +77,26 @@ function editarServicio(s) {
   document.getElementById('s-grupo').value = s.grupo;
   document.getElementById('s-categoria').value = s.categoria || '';
   document.getElementById('s-titulo').textContent = 'Editar: ' + s.nombre;
+  const zb = document.getElementById('zona-borrar'), base = '{{ url_for('servicios.eliminar', ident=0) }}'.replace('/0/', '/' + s.id + '/');
+  zb.style.display = '';
+  zb.querySelectorAll('.zb-nombre').forEach(e => e.textContent = s.nombre);
+  document.getElementById('zb-uso').textContent = (s.tarifas || s.items)
+    ? 'Se usa en ' + s.tarifas + ' tarifas y ' + s.items + ' líneas de cotización: para quitarlo, fusiónalo con el que se queda.'
+    : 'No se usa en ninguna tarifa ni cotización: puedes eliminarlo.';
+  document.getElementById('zb-eliminar').action = base;
+  document.getElementById('zb-btn-eliminar').disabled = !!(s.tarifas || s.items);
+  const fus = document.getElementById('zb-fusionar');
+  if (fus) {
+    fus.action = base;
+    const dest = document.getElementById('zb-destino');
+    [...dest.options].forEach(o => { o.hidden = o.value === String(s.id);
+      o.textContent = o.textContent.replace(' (posible duplicado)', '') + (s.gemelos.includes(Number(o.value)) ? ' (posible duplicado)' : ''); });
+    dest.value = s.gemelos.length ? String(s.gemelos[0]) : '';
+  }
   document.getElementById('form-servicio').scrollIntoView({behavior: 'smooth'});
 }
 function limpiarServicio() {
+  document.getElementById('zona-borrar').style.display = 'none';
   document.getElementById('s-id').value = '';
   document.getElementById('s-titulo').textContent = 'Agregar servicio';
 }

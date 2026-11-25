@@ -243,3 +243,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 [class*="tono-"] .avatar, .avatar[class*="tono-"] { background: var(--tono-suave); color: var(--tono); }
 .pestanas a[class*="tono-"].activo { color: var(--tono); border-color: var(--tono); }
 .punto-tono { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--tono); margin-right: 6px; vertical-align: middle; }
+
+details.fusionar > summary { list-style: none; cursor: pointer; }
+details.fusionar > summary::-webkit-details-marker { display: none; }

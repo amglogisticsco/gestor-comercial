@@ -4,17 +4,43 @@
 {% block contenido %}
 <div class="encabezado">
   <div><h1>Servicios</h1><p>Tu catálogo de conceptos. Al cotizar o pedir fondos, eliges uno y se llenan el nombre, la unidad, la tarifa y el grupo.</p></div>
+  {% if gemelos %}<a class="btn" href="{{ url_for('servicios.lista', duplicados=None if solo_duplicados else 1) }}">{{ 'Ver todos' if solo_duplicados else 'Ver posibles duplicados (' ~ gemelos|length ~ ')' }}</a>{% endif %}
 </div>
 <div class="tarjeta">
   <div class="tabla-envoltura"><table class="tabla">
     <thead><tr><th>Código</th><th>Concepto</th><th>Grupo (solicitud de fondos)</th><th>Unidad</th><th class="der">Tarifa base</th><th>IVA</th><th>Estado</th><th></th></tr></thead>
     <tbody>
-    {% for s in servicios %}
-      <tr><td class="small muted">{{ s.codigo }}</td><td><span class="principal-celda">{{ s.nombre }}</span><div class="small muted">{{ [s.categoria, s.descripcion]|select|join(' · ') }}</div></td>
+    {% for s in servicios if not solo_duplicados or s.id in gemelos %}
+      {% set n_tar, n_items = usos[s.id] %}
+      <tr><td class="small muted">{{ s.codigo }}</td><td><span class="principal-celda">{{ s.nombre }}</span>
+        {% if s.id in gemelos %} <span class="badge b-pendiente">Posible duplicado</span>{% endif %}
+        <div class="small muted">{{ [s.categoria, s.descripcion]|select|join(' · ') }}</div>
+        {% if n_tar or n_items %}<div class="small muted">Usado en {{ n_tar }} tarifas · {{ n_items }} líneas de cotización</div>{% endif %}</td>
         <td class="small">{{ s.grupo }}</td><td>{{ s.unidad }}</td><td class="der num">{{ s.precio|numero if s.precio else '—' }}</td>
         <td>{{ 'Sí' if s.aplica_iva else 'No' }}</td>
         <td>{% if s.activo %}<span class="badge b-aprobada">Activo</span>{% else %}<span class="badge b-borrador">Inactivo</span>{% endif %}</td>
-        <td class="der"><button class="btn btn-sm" type="button" onclick='editarServicio({{ {"id": s.id, "nombre": s.nombre, "descripcion": s.descripcion, "unidad": s.unidad, "precio": s.precio, "aplica_iva": s.aplica_iva, "activo": s.activo, "grupo": s.grupo, "categoria": s.categoria}|tojson }})'>Editar</button></td></tr>
+        <td class="der" style="white-space:nowrap">
+          {% if not n_tar and not n_items %}
+          <form class="en-linea" method="post" action="{{ url_for('servicios.eliminar', ident=s.id) }}">{{ csrf() }}
+            <button class="btn btn-sm btn-peligro" type="submit" data-confirmar="¿Eliminar el servicio «{{ s.nombre }}»?">Eliminar</button></form>
+          {% endif %}
+          {% if current_user.es_admin %}
+          <details class="fusionar" style="display:inline-block;vertical-align:top">
+            <summary class="btn btn-sm">Fusionar…</summary>
+            <form method="post" action="{{ url_for('servicios.eliminar', ident=s.id) }}" class="tarjeta" style="margin-top:8px;width:340px;padding:14px;text-align:left;white-space:normal">
+              {{ csrf() }}
+              <label>Pasar todo a este servicio y borrar «{{ s.nombre }}»:</label>
+              <select name="destino_id" required>
+                <option value="">Elige el servicio que se queda…</option>
+                {% for g in gemelos.get(s.id, []) %}<option value="{{ g.id }}" selected>{{ g.codigo }} · {{ g.nombre }} (posible duplicado)</option>{% endfor %}
+                {% for o in servicios if o.id != s.id and o not in gemelos.get(s.id, []) %}<option value="{{ o.id }}">{{ o.codigo }} · {{ o.nombre }}</option>{% endfor %}
+              </select>
+              <div class="ayuda">Sus {{ n_tar }} tarifas y {{ n_items }} líneas de cotización pasarán al servicio elegido.</div>
+              <button class="btn btn-sm btn-peligro" style="margin-top:10px" type="submit" data-confirmar="¿Fusionar «{{ s.nombre }}» con el servicio elegido? Esta acción no se puede deshacer.">Fusionar y borrar</button>
+            </form>
+          </details>
+          {% endif %}
+          <button class="btn btn-sm" type="button" onclick='editarServicio({{ {"id": s.id, "nombre": s.nombre, "descripcion": s.descripcion, "unidad": s.unidad, "precio": s.precio, "aplica_iva": s.aplica_iva, "activo": s.activo, "grupo": s.grupo, "categoria": s.categoria}|tojson }})'>Editar</button></td></tr>
     {% endfor %}
     </tbody></table></div>
 </div>

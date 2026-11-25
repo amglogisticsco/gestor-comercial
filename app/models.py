@@ -87,6 +87,7 @@ class Empresa(db.Model):
     cumple_asunto = db.Column(db.String(200), default="")
     cumple_mensaje = db.Column(db.Text, default="")
     cot_siguiente = db.Column(db.Integer, default=1)  # para continuar la numeración del Excel
+    catalogo_version = db.Column(db.Integer, default=0)  # el catálogo inicial se carga una sola vez
 
     @staticmethod
     def actual():
@@ -863,7 +864,9 @@ def sembrar_datos():
         for nombre, unidad, iva, grupo in CATALOGO_INICIAL:
             db.session.add(Servicio(nombre=nombre, unidad=unidad, aplica_iva=iva, grupo=grupo))
         db.session.flush()
-    asegurar_servicios_amg()
+    if (empresa.catalogo_version or 0) < 1:
+        asegurar_servicios_amg()
+        empresa.catalogo_version = 1
     vincular_proveedores()
     asignar_codigos()
     db.session.commit()

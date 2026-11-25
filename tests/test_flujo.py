@@ -360,3 +360,39 @@ def test_eliminar_definitivo_y_reactivar(cliente_http):
     with c.app.app_context():
         assert db.session.get(Cliente, cid) is None
         assert Cotizacion.query.count() == Anticipo.query.count() == Correo.query.count() == 0
+
+
+def test_servicios_duplicados_eliminar_y_fusionar(cliente_http):
+    from app.models import ItemCotizacion, Servicio, Tarifa
+    c = cliente_http
+    post(c, "/setup", {"empresa": "AMG", "nombre": "David", "email": "d@amg.test", "clave": "clave-segura"})
+    with c.app.app_context():
+        original = Servicio.query.filter_by(codigo="SER-002").one()  # Flete aéreo
+        dup = Servicio(nombre="FLETE AEREO", unidad="Kg"); suelto = Servicio(nombre="Servicio sin uso")
+        db.session.add_all([dup, suelto]); db.session.flush()
+        db.session.add(Tarifa(servicio_id=dup.id, valor=6, moneda="USD"))
+        cli = Cliente(razon_social="X"); db.session.add(cli); db.session.flush()
+        cot = Cotizacion(numero="COT-0009", cliente=cli)
+        cot.items = [ItemCotizacion(descripcion="Flete", servicio_id=dup.id, precio=6)]
+        db.session.add(cot); db.session.commit()
+        ids = (original.id, dup.id, suelto.id)
+    texto = c.get("/servicios/").get_data(as_text=True)
+    assert "Posible duplicado" in texto
+    # Sin uso: se elimina directo
+    post(c, f"/servicios/{ids[2]}/eliminar", {}, desde="/servicios/")
+    # En uso sin destino: no se borra
+    r = post(c, f"/servicios/{ids[1]}/eliminar", {}, desde="/servicios/")
+    assert "Fusiónalo" in r.get_data(as_text=True)
+    # Fusionar: tarifas e ítems pasan al original
+    post(c, f"/servicios/{ids[1]}/eliminar", {"destino_id": ids[0]}, desde="/servicios/")
+    with c.app.app_context():
+        assert db.session.get(Servicio, ids[1]) is None and db.session.get(Servicio, ids[2]) is None
+        assert Tarifa.query.one().servicio_id == ids[0]
+        assert ItemCotizacion.query.one().servicio_id == ids[0]
+    # Un reinicio no vuelve a crear servicios borrados del catálogo inicial
+    with c.app.app_context():
+        from app.models import sembrar_datos
+        db.session.delete(db.session.get(Servicio, ids[0])); db.session.commit()
+        Tarifa.query.delete(); ItemCotizacion.query.delete(); db.session.commit()
+        sembrar_datos()
+        assert Servicio.query.filter_by(codigo="SER-002").count() == 0

@@ -92,16 +92,24 @@ def borrador_solicitud_tarifa(proveedor, cot=None, idioma="es"):
     if cot:
         etiquetas_en = {"Origen": "Origin", "Destino": "Destination", "Modalidad": "Mode", "Incoterm": "Incoterm",
                         "Tipo de carga": "Cargo type", "Contenedor": "Equipment", "Peso / Volumen": "Weight / Volume",
-                        "Piezas": "Pieces", "Mercancía": "Commodity", "Dimensiones": "Dimensions", "Ruta": "Routing"}
+                        "Piezas": "Pieces", "Mercancía": "Commodity", "Dimensiones": "Dimensions", "Ruta": "Routing",
+                        "Puerto de origen": "Port of loading (POL)", "Puerto de destino": "Port of discharge (POD)",
+                        "Aeropuerto de origen": "Airport of departure", "Aeropuerto de destino": "Airport of destination",
+                        "Puerto / aeropuerto de origen": "Port / airport of loading",
+                        "Puerto / aeropuerto de destino": "Port / airport of discharge"}
         omitir = {"Naviera / Aerolínea", "Tiempo tránsito", "Días libres origen", "Días libres destino"}
         for k, v in cot.datos_servicio:
             if k not in omitir:
                 datos.append(f"- {etiquetas_en.get(k, k) if idioma == 'en' else k}: {v}")
         if cot.tipo_operacion and idioma != "en":
             datos.insert(0, f"- Operación: {cot.tipo_operacion}")
-    bloque = ("\n".join(datos) + "\n\n") if datos else "- Origen:\n- Destino:\n- Mercancía:\n- Peso / volumen:\n- Incoterm:\n\n"
+    bloque = ("\n".join(datos) + "\n\n") if datos else (
+        "- Origen:\n- Destino:\n- Puerto / aeropuerto de origen:\n- Puerto / aeropuerto de destino:\n"
+        "- Mercancía:\n- Peso / volumen:\n- Incoterm:\n\n")
     if idioma == "en":
         asunto = "Rate request" + (f" – {cot.origen} to {cot.destino}" if cot and cot.origen and cot.destino else "") + f" – {empresa.nombre}"
+        bloque = bloque.replace("- Puerto / aeropuerto de origen:", "- Port / airport of loading:").replace(
+            "- Puerto / aeropuerto de destino:", "- Port / airport of discharge:")
         bloque = bloque.replace("- Origen:", "- Origin:").replace("- Destino:", "- Destination:").replace(
             "- Mercancía:", "- Commodity:").replace("- Peso / volumen:", "- Weight / volume:")
         cuerpo = (f"Dear {saludo or 'partner'},\n\nGood day. We kindly request your best rates for the following shipment:\n\n"

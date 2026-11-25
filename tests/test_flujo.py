@@ -293,7 +293,8 @@ def test_directorio_proveedores_y_agentes(cliente_http):
     assert "MODALUX INC" in c.get("/directorio/?q=modalux").get_data(as_text=True)
     # Cotización: la naviera es la visible; el proveedor del cargue no sale en el PDF
     r = post(c, "/cotizaciones/nueva", {"cliente_id": cid, "moneda": "USD", "iva_pct": "0", "tarifa_id": t_flete,
-                                       "transportista": "MAERSK", "origen": "CARTAGENA", "destino": "PANAMA",
+                                       "transportista": "MAERSK", "origen": "CARTAGENA", "destino": "PANAMA", "modalidad": "Marítimo",
+                                       "puerto_origen": "Puerto de Cartagena (COCTG)", "puerto_destino": "Puerto de Colón / Manzanillo – Panamá (PAMIT)",
                                        "item_descripcion": ["Flete marítimo", "Cargue y descargue"], "item_cantidad": ["1", "1"],
                                        "item_unidad": ["Contenedor", "Servicio"], "item_precio": ["1450", "270"],
                                        "item_iva": ["0", "0"], "item_servicio": [str(flete), str(cargue)],
@@ -305,6 +306,7 @@ def test_directorio_proveedores_y_agentes(cliente_http):
         from app.models import Empresa
         html = render_template("pdf/cotizacion.html", c=cot, empresa=Empresa.actual(), logo=None)
         assert "MAERSK" in html and "Auxiliares de Cargue" not in html
+        assert "Puerto de origen" in html and "COCTG" in html
         cot_id = cot.id
     # Pedir cotización al agente, en inglés, con los datos de la operación
     r = post(c, f"/directorio/proveedores/{agente_id}/pedir-cotizacion", {"cotizacion_id": cot_id, "idioma": "en"},
@@ -314,6 +316,8 @@ def test_directorio_proveedores_y_agentes(cliente_http):
         m = Correo.query.filter_by(tipo="proveedor").one()
         assert m.para == "pricing@sfc.test" and m.estado == "borrador"
         assert "Rate request" in m.asunto and "CARTAGENA" in m.cuerpo
+        assert "Port of loading (POL): Puerto de Cartagena (COCTG)" in m.cuerpo
+        assert "Port of discharge (POD): Puerto de Colón" in m.cuerpo
     for url in ["/directorio/", "/directorio/?ver=agentes", "/directorio/?ver=proveedores&tipo=Naviera",
                 f"/directorio/proveedores/{agente_id}", f"/directorio/proveedores/{agente_id}/editar",
                 "/directorio/proveedores/nuevo?agente=1", "/tarifas/nueva", f"/cotizaciones/{cot_id}/editar", "/correos/"]:

@@ -44,6 +44,10 @@
         <div class="c-3"><label>Destino</label><input type="text" name="destino" id="destino" value="{{ c.destino or '' }}" placeholder="Puerto España, TT"></div>
         <div class="c-4"><label>Ruta</label><input type="text" name="ruta" value="{{ c.ruta or '' }}" placeholder="Bogotá – Cartagena – Puerto España"></div>
         <div class="c-2"><label>Incoterm</label><select name="incoterm">{{ opciones(incoterms, c.incoterm) }}</select></div>
+        <div class="c-6"><label><span class="lbl-terminal">{{ c.terminal }}</span> de origen <span class="opc">(carga)</span></label>
+          <input type="text" name="puerto_origen" value="{{ c.puerto_origen or '' }}" list="l-terminales" placeholder="Cartagena (CTG) / El Dorado (BOG)"></div>
+        <div class="c-6"><label><span class="lbl-terminal">{{ c.terminal }}</span> de destino <span class="opc">(descarga)</span></label>
+          <input type="text" name="puerto_destino" value="{{ c.puerto_destino or '' }}" list="l-terminales" placeholder="Colón / Manzanillo (PA), Shanghái (CN)…"></div>
         <div class="c-3"><label>Tipo de carga</label><select name="tipo_carga">{{ opciones(tipos_carga, c.tipo_carga) }}</select></div>
         <div class="c-3"><label>Contenedor</label><input type="text" name="contenedor" list="l-contenedores" value="{{ c.contenedor or '' }}" placeholder="40 HC"></div>
         <div class="c-3"><label>Naviera / Aerolínea</label><input type="text" name="transportista" id="transportista" list="l-transportistas" value="{{ c.transportista or '' }}"></div>
@@ -58,6 +62,14 @@
         <div class="c-4"><label>Dimensiones</label><input type="text" name="dimensiones" value="{{ c.dimensiones or '' }}" placeholder="120 x 100 x 80 cm"></div>
       </div>
       <datalist id="l-contenedores">{% for x in contenedores %}<option value="{{ x }}">{% endfor %}</datalist>
+      <datalist id="l-terminales">
+        <option value="Puerto de Cartagena (COCTG)"><option value="Puerto de Buenaventura (COBUN)"><option value="Puerto de Barranquilla (COBAQ)">
+        <option value="Puerto de Santa Marta (COSMR)"><option value="Aeropuerto El Dorado – Bogotá (BOG)"><option value="Aeropuerto José María Córdova – Medellín (MDE)">
+        <option value="Aeropuerto Alfonso Bonilla Aragón – Cali (CLO)"><option value="Aeropuerto Ernesto Cortissoz – Barranquilla (BAQ)"><option value="Aeropuerto Rafael Núñez – Cartagena (CTG)">
+        <option value="Puerto de Colón / Manzanillo – Panamá (PAMIT)"><option value="Puerto de Balboa – Panamá (PABLB)"><option value="Aeropuerto de Tocumen – Panamá (PTY)">
+        <option value="Puerto de Port of Spain – Trinidad y Tobago (TTPOS)"><option value="Puerto de Shanghái – China (CNSHA)"><option value="Puerto de Ningbo – China (CNNGB)">
+        <option value="Puerto de Miami – EE. UU. (USMIA)"><option value="Aeropuerto de Miami – EE. UU. (MIA)">
+      </datalist>
       <datalist id="l-unidades">{% for x in unidades %}<option value="{{ x }}">{% endfor %}</datalist>
       <datalist id="l-transportistas">{% for x in transportistas %}<option value="{{ x }}">{% endfor %}</datalist>
     </div>
@@ -285,6 +297,15 @@ document.getElementById('btn-tarifas-cliente').addEventListener('click', () => {
   if (!cuerpo.querySelector('tr')) agregarFila({cantidad: 1, iva: false});
   recalcular();
 });
+(function () {
+  const sel = document.querySelector('[name=modalidad]');
+  const poner = () => {
+    const m = (sel.value || '').toLowerCase();
+    const t = m.startsWith('aéreo') || m.startsWith('aereo') ? 'Aeropuerto' : m.startsWith('marítimo') || m.startsWith('maritimo') ? 'Puerto' : 'Puerto / aeropuerto';
+    document.querySelectorAll('.lbl-terminal').forEach(el => el.textContent = t);
+  };
+  sel.addEventListener('change', poner);
+})();
 EXISTENTES.length ? EXISTENTES.forEach(agregarFila) : agregarFila({cantidad: 1, iva: false});
 </script>
 {% endblock %}

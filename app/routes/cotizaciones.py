@@ -13,7 +13,7 @@ from . import a_fecha, a_numero, obtener
 
 bp = Blueprint("cotizaciones", __name__, url_prefix="/cotizaciones")
 
-CAMPOS_TEXTO = ["ejecutivo", "condicion_pago", "tipo_operacion", "modalidad", "incoterm", "origen", "destino", "ruta",
+CAMPOS_TEXTO = ["ejecutivo", "condicion_pago", "tipo_operacion", "modalidad", "incoterm", "origen", "destino", "puerto_origen", "puerto_destino", "ruta",
                 "mercancia", "tipo_carga", "contenedor", "transportista", "bultos", "peso_kg", "peso_vol",
                 "volumen_m3", "dimensiones", "tiempo_transito", "dias_libres_origen", "dias_libres_destino",
                 "notas", "condiciones", "nota_tarifas"]

@@ -346,6 +346,8 @@ class Cotizacion(db.Model):
     incoterm = db.Column(db.String(5), default="")
     origen = db.Column(db.String(120), default="")
     destino = db.Column(db.String(120), default="")
+    puerto_origen = db.Column(db.String(120), default="")  # puerto o aeropuerto de carga (POL / AOD)
+    puerto_destino = db.Column(db.String(120), default="")  # puerto o aeropuerto de descarga (POD / AOA)
     ruta = db.Column(db.String(200), default="")
     mercancia = db.Column(db.String(200), default="")
     tipo_carga = db.Column(db.String(40), default="")
@@ -412,10 +414,21 @@ class Cotizacion(db.Model):
         return " / ".join(partes)
 
     @property
+    def terminal(self):
+        """'Aeropuerto', 'Puerto' o 'Puerto / aeropuerto' según la modalidad."""
+        modalidad = _norm(self.modalidad)
+        if modalidad.startswith("AÉREO") or modalidad.startswith("AEREO"):
+            return "Aeropuerto"
+        if modalidad.startswith("MARÍTIMO") or modalidad.startswith("MARITIMO"):
+            return "Puerto"
+        return "Puerto / aeropuerto"
+
+    @property
     def datos_servicio(self):
         """Pares (etiqueta, valor) con datos, en el orden del formato de AMG."""
         pares = [
             ("Origen", self.origen), ("Destino", self.destino),
+            (f"{self.terminal} de origen", self.puerto_origen), (f"{self.terminal} de destino", self.puerto_destino),
             ("Modalidad", self.modalidad), ("Incoterm", self.incoterm),
             ("Tipo de carga", self.tipo_carga), ("Contenedor", self.contenedor),
             ("Peso / Volumen", self.peso_volumen), ("Tiempo tránsito", f"{self.tiempo_transito} días" if self.tiempo_transito else ""),

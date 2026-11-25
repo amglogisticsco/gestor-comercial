@@ -257,3 +257,64 @@ def test_tarifas_por_cliente_y_proceso(cliente_http):
         assert buscar_tarifa(ag.id, cliente_id=b.id, proceso="Importación").codigo == "T-IMPO"
         # Cliente A importando: no aplica su tarifa de exportación
         assert buscar_tarifa(ag.id, cliente_id=a.id, proceso="Importación").codigo == "T-IMPO"
+
+
+def test_directorio_proveedores_y_agentes(cliente_http):
+    from app.models import Correo, Proveedor, Servicio, Tarifa
+    c = cliente_http
+    post(c, "/setup", {"empresa": "AMG LOGISTICS SAS", "nombre": "David", "email": "d@amg.test", "clave": "clave-segura"})
+    # Agente internacional
+    r = post(c, "/directorio/proveedores/nuevo", {"nombre": "Shanghai Freight Co", "tipo": "Agente internacional",
+                                                 "email": "pricing@sfc.test", "pais": "China", "red": "WCA",
+                                                 "cobertura": "Shanghái, Ningbo", "servicios_ofrecidos": "FCL, LCL"})
+    assert "PRV-0001" in r.get_data(as_text=True)
+    with c.app.app_context():
+        flete = Servicio.query.filter_by(codigo="SER-001").one().id
+        cargue = Servicio.query.filter_by(codigo="SER-009").one().id
+        cliente = Cliente(razon_social="MODALUX INC", pais="Panamá"); db.session.add(cliente); db.session.commit()
+        cid = cliente.id
+    # Tarifas con proveedor nuevo creado desde el formulario
+    post(c, "/tarifas/nueva", {"servicio_id": flete, "proveedor_id": "nuevo", "nuevo_proveedor": "MAERSK",
+                               "nuevo_tipo": "Naviera", "origen": "CARTAGENA", "destino": "PANAMA", "moneda": "USD",
+                               "valor": "1450", "activo": "1"})
+    post(c, "/tarifas/nueva", {"servicio_id": cargue, "proveedor_id": "nuevo", "nuevo_proveedor": "Auxiliares de Cargue",
+                               "nuevo_tipo": "Otro", "origen": "CARTAGENA", "destino": "PANAMA", "moneda": "USD",
+                               "valor": "270", "activo": "1"})
+    with c.app.app_context():
+        maersk = Proveedor.query.filter_by(nombre="MAERSK").one()
+        assert maersk.tipo == "Naviera" and maersk.tarifas[0].es_transportista
+        aux = Proveedor.query.filter_by(nombre="Auxiliares de Cargue").one()
+        assert not aux.tarifas[0].es_transportista
+        t_flete, t_cargue = maersk.tarifas[0].id, aux.tarifas[0].id
+        agente_id = Proveedor.query.filter_by(nombre="Shanghai Freight Co").one().id
+    # Búsqueda única en el directorio
+    texto = c.get("/directorio/?q=shanghai").get_data(as_text=True)
+    assert "Shanghai Freight Co" in texto and "MODALUX" not in texto
+    assert "MODALUX INC" in c.get("/directorio/?q=modalux").get_data(as_text=True)
+    # Cotización: la naviera es la visible; el proveedor del cargue no sale en el PDF
+    r = post(c, "/cotizaciones/nueva", {"cliente_id": cid, "moneda": "USD", "iva_pct": "0", "tarifa_id": t_flete,
+                                       "transportista": "MAERSK", "origen": "CARTAGENA", "destino": "PANAMA",
+                                       "item_descripcion": ["Flete marítimo", "Cargue y descargue"], "item_cantidad": ["1", "1"],
+                                       "item_unidad": ["Contenedor", "Servicio"], "item_precio": ["1450", "270"],
+                                       "item_iva": ["0", "0"], "item_servicio": [str(flete), str(cargue)],
+                                       "item_tarifa": [str(t_flete), str(t_cargue)], "item_obs": ["", ""]})
+    with c.app.app_context():
+        cot = Cotizacion.query.one()
+        from app.services.pdf import pdf_cotizacion
+        from flask import render_template
+        from app.models import Empresa
+        html = render_template("pdf/cotizacion.html", c=cot, empresa=Empresa.actual(), logo=None)
+        assert "MAERSK" in html and "Auxiliares de Cargue" not in html
+        cot_id = cot.id
+    # Pedir cotización al agente, en inglés, con los datos de la operación
+    r = post(c, f"/directorio/proveedores/{agente_id}/pedir-cotizacion", {"cotizacion_id": cot_id, "idioma": "en"},
+             desde=f"/directorio/proveedores/{agente_id}")
+    assert "Revisar y enviar" in r.get_data(as_text=True)
+    with c.app.app_context():
+        m = Correo.query.filter_by(tipo="proveedor").one()
+        assert m.para == "pricing@sfc.test" and m.estado == "borrador"
+        assert "Rate request" in m.asunto and "CARTAGENA" in m.cuerpo
+    for url in ["/directorio/", "/directorio/?ver=agentes", "/directorio/?ver=proveedores&tipo=Naviera",
+                f"/directorio/proveedores/{agente_id}", f"/directorio/proveedores/{agente_id}/editar",
+                "/directorio/proveedores/nuevo?agente=1", "/tarifas/nueva", f"/cotizaciones/{cot_id}/editar", "/correos/"]:
+        assert c.get(url).status_code == 200, url

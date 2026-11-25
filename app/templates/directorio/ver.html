@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, badge, iniciales, csrf with context %}
+{% set clases = {'vigente': 'b-aprobada', 'vencida': 'b-error', 'futura': 'b-enviada', 'sin_valor': 'b-pendiente', 'inactiva': 'b-borrador'} %}
+{% block titulo %}{{ p.nombre }}{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <div class="migas"><a href="{{ url_for('directorio.inicio', ver='agentes' if p.es_agente else 'proveedores') }}">Directorio</a></div>
+    <div class="fila-persona"><div class="avatar" style="width:44px;height:44px;font-size:15px">{{ iniciales(p.nombre) }}</div>
+      <div><h1>{{ p.nombre }}</h1>
+      <p style="margin:0">{{ p.codigo }} · <span class="badge {{ 'b-enviada' if p.es_transportista else 'b-borrador' }}">{{ p.tipo }}</span>{% if p.red %} · {{ p.red }}{% endif %}{% if not p.activo %} · Inactivo{% endif %}</p></div></div>
+  </div>
+  <div class="acciones">
+    <a class="btn" href="{{ url_for('directorio.editar', ident=p.id) }}">{{ icono('editar') }} Editar</a>
+    {% if not p.es_agente %}<a class="btn" href="{{ url_for('tarifas.editar', proveedor_id=p.id) }}">{{ icono('mas') }} Tarifa</a>{% endif %}
+  </div>
+</div>
+
+<div class="rejilla-3-1">
+  <div>
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Pedir cotización</h2></div>
+      <form method="post" action="{{ url_for('directorio.pedir_cotizacion', ident=p.id) }}" class="tarjeta-cuerpo">
+        {{ csrf() }}
+        <div class="form-grid">
+          <div class="c-8"><label>Con los datos de la cotización <span class="opc">(opcional)</span></label>
+            <select name="cotizacion_id"><option value="">Sin cotización (plantilla en blanco)</option>
+              {% for c in cotizaciones %}<option value="{{ c.id }}">{{ c.numero }} · {{ c.cliente.razon_social }}{% if c.origen or c.destino %} · {{ c.origen }} → {{ c.destino }}{% endif %}</option>{% endfor %}
+            </select></div>
+          <div class="c-4"><label>Idioma</label><select name="idioma">
+            <option value="es" {{ 'selected' if not p.es_agente }}>Español</option><option value="en" {{ 'selected' if p.es_agente }}>Inglés</option></select></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px;flex-wrap:wrap">
+          <span class="small muted">Se prepara un borrador para {{ p.email or 'este proveedor (sin correo registrado)' }}. Lo revisas antes de enviarlo.</span>
+          <button class="btn btn-primario" type="submit">{{ icono('correo') }} Preparar solicitud</button>
+        </div>
+      </form>
+    </div>
+
+    {% if not p.es_agente or p.tarifas %}
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Tarifas</h2></div>
+      {% if p.tarifas %}
+      <div class="tabla-envoltura"><table class="tabla">
+        <thead><tr><th>Código</th><th>Servicio</th><th>Aplica a</th><th>Ruta</th><th class="der">Tarifa</th><th>Estado</th></tr></thead>
+        <tbody>{% for t in p.tarifas %}
+          <tr><td><a class="principal-celda" href="{{ url_for('tarifas.editar', ident=t.id) }}">{{ t.codigo }}</a></td>
+            <td>{{ t.servicio.nombre }}</td><td class="small">{{ t.aplica_a }}</td><td class="small">{{ t.ruta or '—' }}</td>
+            <td class="der num">{{ t.valor|moneda(t.moneda) if t.valor else '—' }}</td>
+            <td><span class="badge {{ clases[t.estado] }}">{{ t.estado|replace('_', ' ')|capitalize }}</span></td></tr>
+        {% endfor %}</tbody></table></div>
+      {% else %}<div class="vacio">Sin tarifas registradas.</div>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>Solicitudes enviadas</h2></div>
+      {% if correos %}
+      <ul class="lista-simple">{% for m in correos %}
+        <li><div><a class="principal-celda" href="{{ url_for('correos.editar', ident=m.id) }}">{{ m.asunto }}</a>
+          <div class="small muted">{{ (m.enviado_en or m.creado)|fecha_hora }}</div></div>{{ badge(m.estado, ESTADOS) }}</li>
+      {% endfor %}</ul>
+      {% else %}<div class="vacio">Aún no le has pedido cotizaciones.</div>{% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="tarjeta"><div class="tarjeta-cab"><h2>Contacto</h2></div><div class="tarjeta-cuerpo"><dl class="datos">
+      <dt>Nombre</dt><dd>{{ p.contacto_nombre or '—' }}{% if p.cargo %}<div class="small muted">{{ p.cargo }}</div>{% endif %}</dd>
+      <dt>Correo</dt><dd>{% if p.email %}<a href="mailto:{{ p.email }}">{{ p.email }}</a>{% else %}—{% endif %}</dd>
+      {% if p.email_cc %}<dt>En copia</dt><dd>{{ p.email_cc }}</dd>{% endif %}
+      <dt>Celular</dt><dd>{{ p.telefono or '—' }}</dd>
+      {% if p.telefono_empresa %}<dt>Tel. empresa</dt><dd>{{ p.telefono_empresa }}</dd>{% endif %}
+      <dt>Ubicación</dt><dd>{{ [p.ciudad, p.pais]|select|join(', ') or '—' }}</dd>
+      {% if p.nit %}<dt>NIT / Tax ID</dt><dd>{{ p.nit }}</dd>{% endif %}
+      {% if p.web %}<dt>Web</dt><dd>{{ p.web }}</dd>{% endif %}
+      {% if p.es_agente %}
+        {% if p.servicios_ofrecidos %}<dt>Servicios</dt><dd>{{ p.servicios_ofrecidos }}</dd>{% endif %}
+        {% if p.cobertura %}<dt>Cobertura</dt><dd>{{ p.cobertura }}</dd>{% endif %}
+      {% endif %}
+    </dl></div></div>
+    {% if p.notas %}<div class="tarjeta"><div class="tarjeta-cab"><h2>Notas</h2></div><div class="tarjeta-cuerpo">{{ p.notas|parrafos }}</div></div>{% endif %}
+    <p class="small muted" style="margin-top:12px">{{ 'Aparece en la cotización del cliente como naviera / aerolínea.' if p.es_transportista else 'Proveedor interno: no aparece en la cotización del cliente.' }}</p>
+    <div style="text-align:right">
+      <form class="en-linea" method="post" action="{{ url_for('directorio.eliminar', ident=p.id) }}">{{ csrf() }}
+        <button class="btn btn-sm btn-peligro" type="submit" data-confirmar="¿Eliminar del directorio? Si tiene tarifas o correos, quedará inactivo.">Eliminar</button></form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -61,7 +61,7 @@
       <ul class="lista-simple">
         {% for m in borradores %}
         <li><div style="min-width:0"><a href="{{ url_for('correos.editar', ident=m.id) }}" class="principal-celda">{{ m.asunto or '(sin asunto)' }}</a>
-          <div class="small muted">{{ m.cliente.razon_social if m.cliente else m.para }}</div></div>
+          <div class="small muted">{{ m.destinatario_nombre }}</div></div>
           {% if m.estado == 'error' %}<span class="badge b-error">Error</span>{% else %}<span class="badge b-borrador">Borrador</span>{% endif %}</li>
         {% endfor %}
       </ul>

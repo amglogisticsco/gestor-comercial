@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, iniciales with context %}
+{% block titulo %}Directorio{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div><h1>Directorio</h1><p>Clientes, proveedores y agentes internacionales en un solo lugar.</p></div>
+  <div class="acciones">
+    <a class="btn" href="{{ url_for('clientes.nuevo') }}">{{ icono('mas') }} Cliente</a>
+    <a class="btn" href="{{ url_for('directorio.editar') }}">{{ icono('mas') }} Proveedor</a>
+    <a class="btn btn-primario" href="{{ url_for('directorio.editar', agente=1) }}">{{ icono('mas') }} Agente internacional</a>
+  </div>
+</div>
+
+<form method="get" class="tarjeta" style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+  <input type="hidden" name="ver" value="{{ pestana }}">
+  <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre, código, contacto, correo, país, ruta o servicio…" style="flex:1;min-width:260px" autofocus>
+  {% if pestana == 'proveedores' %}
+  <select name="tipo" style="width:auto"><option value="">Todos los tipos</option>{% for t in tipos %}<option {{ 'selected' if t == tipo }}>{{ t }}</option>{% endfor %}</select>
+  {% endif %}
+  <label class="check" style="margin:0"><input type="checkbox" name="inactivos" value="1" {{ 'checked' if inactivos }}> Inactivos</label>
+  <button class="btn" type="submit">Buscar</button>
+</form>
+
+<div class="pestanas" style="margin-top:16px">
+  {% for clave, nombre, n in [('todos', 'Todos', clientes|length + proveedores|length + agentes|length), ('clientes', 'Clientes', clientes|length), ('proveedores', 'Proveedores', proveedores|length), ('agentes', 'Agentes internacionales', agentes|length)] %}
+  <a href="{{ url_for('directorio.inicio', ver=clave, q=q, inactivos=1 if inactivos else None) }}" class="{{ 'activo' if pestana == clave }}">{{ nombre }} <span class="small muted">{{ n }}</span></a>
+  {% endfor %}
+</div>
+
+{% if pestana in ('todos', 'clientes') %}
+<div class="tarjeta">
+  <div class="tarjeta-cab"><h2>Clientes</h2><a class="small" href="{{ url_for('clientes.lista') }}">Ver lista completa</a></div>
+  {% if clientes %}
+  <div class="tabla-envoltura"><table class="tabla">
+    <thead><tr><th>Cliente</th><th>Contacto</th><th>Correo</th><th>País</th></tr></thead>
+    <tbody>{% for c in (clientes if pestana == 'clientes' else clientes[:8]) %}
+      <tr><td><div class="fila-persona"><div class="avatar">{{ iniciales(c.razon_social) }}</div><div>
+        <a class="principal-celda" href="{{ url_for('clientes.ver', ident=c.id) }}">{{ c.razon_social }}</a>
+        <div class="small muted">{{ c.codigo }}{% if c.nit %} · NIT {{ c.nit }}{% endif %}</div></div></div></td>
+        <td class="small">{{ c.contacto_nombre or '—' }}{% if c.telefono %}<div class="muted">{{ c.telefono }}</div>{% endif %}</td>
+        <td class="small">{{ c.email or '—' }}</td>
+        <td class="small">{{ [c.ciudad, c.pais]|select|join(', ') or '—' }}</td></tr>
+    {% endfor %}</tbody></table></div>
+    {% if pestana == 'todos' and clientes|length > 8 %}<div class="vacio" style="padding:12px"><a href="{{ url_for('directorio.inicio', ver='clientes', q=q) }}">Ver los {{ clientes|length }} clientes</a></div>{% endif %}
+  {% else %}<div class="vacio">Sin clientes{% if q %} para «{{ q }}»{% endif %}.</div>{% endif %}
+</div>
+{% endif %}
+
+{% for titulo, lista, clave in [('Proveedores', proveedores, 'proveedores'), ('Agentes internacionales', agentes, 'agentes')] if pestana in ('todos', clave) %}
+<div class="tarjeta">
+  <div class="tarjeta-cab"><h2>{{ titulo }}</h2></div>
+  {% if lista %}
+  <div class="tabla-envoltura"><table class="tabla">
+    <thead><tr><th>Nombre</th><th>{{ 'Red / cobertura' if clave == 'agentes' else 'Tipo' }}</th><th>Contacto</th><th>Correo</th><th>País</th><th class="der">Tarifas</th></tr></thead>
+    <tbody>{% for p in (lista if pestana == clave else lista[:8]) %}
+      <tr><td><div class="fila-persona"><div class="avatar">{{ iniciales(p.nombre) }}</div><div>
+        <a class="principal-celda" href="{{ url_for('directorio.ver', ident=p.id) }}">{{ p.nombre }}</a>
+        <div class="small muted">{{ p.codigo }}{% if not p.activo %} · Inactivo{% endif %}</div></div></div></td>
+        <td class="small">{% if clave == 'agentes' %}{{ p.red or '—' }}{% if p.cobertura %}<div class="muted">{{ p.cobertura|truncate(50) }}</div>{% endif %}
+          {% else %}<span class="badge {{ 'b-enviada' if p.es_transportista else 'b-borrador' }}">{{ p.tipo }}</span>{% endif %}</td>
+        <td class="small">{{ p.contacto_nombre or '—' }}{% if p.telefono %}<div class="muted">{{ p.telefono }}</div>{% endif %}</td>
+        <td class="small">{{ p.email or '—' }}</td>
+        <td class="small">{{ [p.ciudad, p.pais]|select|join(', ') or '—' }}</td>
+        <td class="der num">{{ p.tarifas|length or '—' }}</td></tr>
+    {% endfor %}</tbody></table></div>
+    {% if pestana == 'todos' and lista|length > 8 %}<div class="vacio" style="padding:12px"><a href="{{ url_for('directorio.inicio', ver=clave, q=q) }}">Ver los {{ lista|length }}</a></div>{% endif %}
+  {% else %}<div class="vacio">Sin {{ titulo|lower }}{% if q %} para «{{ q }}»{% endif %}. <a href="{{ url_for('directorio.editar', agente=1 if clave == 'agentes' else None) }}">Agregar</a></div>{% endif %}
+</div>
+{% endfor %}
+{% endblock %}

@@ -13,7 +13,7 @@
     <thead><tr><th>Asunto</th><th>Para</th><th>Tipo</th><th>{{ 'Enviado' if vista == 'enviados' else 'Creado' }}</th><th>Estado</th></tr></thead>
     <tbody>{% for m in correos %}
       <tr><td><a class="principal-celda" href="{{ url_for('correos.editar', ident=m.id) }}">{{ m.asunto or '(sin asunto)' }}</a>
-          {% if m.cliente %}<div class="small muted">{{ m.cliente.razon_social }}</div>{% endif %}</td>
+          {% if m.cliente or m.proveedor %}<div class="small muted">{{ m.destinatario_nombre }}</div>{% endif %}</td>
         <td class="small">{{ m.para or '—' }}</td><td>{{ tipos.get(m.tipo, m.tipo) }}</td>
         <td class="small">{{ (m.enviado_en if vista == 'enviados' else m.creado)|fecha_hora }}</td>
         <td>{{ badge(m.estado, ESTADOS) }}</td></tr>

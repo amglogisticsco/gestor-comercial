@@ -7,7 +7,7 @@ from . import obtener
 
 bp = Blueprint("correos", __name__, url_prefix="/correos")
 
-TIPOS = {"cotizacion": "Cotización", "anticipo": "Solicitud de fondos", "cumpleanos": "Cumpleaños", "libre": "Mensaje"}
+TIPOS = {"cotizacion": "Cotización", "anticipo": "Solicitud de fondos", "cumpleanos": "Cumpleaños", "libre": "Mensaje", "proveedor": "Solicitud a proveedor"}
 
 
 @bp.route("/")

@@ -22,7 +22,7 @@
     {% set ep = request.endpoint or '' %}
     <nav class="nav">
       <a href="{{ url_for('panel.inicio') }}" class="{{ 'activo' if ep.startswith('panel') }}">{{ icono('panel') }} Panel</a>
-      <a href="{{ url_for('clientes.lista') }}" class="{{ 'activo' if ep.startswith('clientes') }}">{{ icono('clientes') }} Clientes</a>
+      <a href="{{ url_for('directorio.inicio') }}" class="{{ 'activo' if ep.startswith('directorio') or ep.startswith('clientes') }}">{{ icono('clientes') }} Directorio</a>
       <a href="{{ url_for('cotizaciones.lista') }}" class="{{ 'activo' if ep.startswith('cotizaciones') }}">{{ icono('cotizacion') }} Cotizaciones</a>
       <a href="{{ url_for('anticipos.lista') }}" class="{{ 'activo' if ep.startswith('anticipos') }}">{{ icono('anticipo') }} Solicitud de fondos</a>
       <a href="{{ url_for('correos.lista') }}" class="{{ 'activo' if ep.startswith('correos') }}">{{ icono('correo') }} Correos

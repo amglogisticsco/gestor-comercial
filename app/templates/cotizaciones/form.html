@@ -34,10 +34,10 @@
     <div class="seccion-form">
       <h3>Datos del servicio <span class="opc" style="text-transform:none;letter-spacing:0;font-weight:400">· solo aparece en el PDF lo que llenes</span></h3>
       <div class="form-grid">
-        <div class="c-12"><label>Flete principal <span class="opc">(opcional: elige la tarifa de flete marítimo o aéreo; llena naviera/aerolínea, origen, destino y moneda)</span></label>
+        <div class="c-12"><label>Flete principal <span class="opc">(opcional: tarifa de la naviera o aerolínea; llena naviera/aerolínea, origen, destino y moneda)</span></label>
           <select name="tarifa_id" id="tarifa-base">
             <option value="">Sin flete principal</option>
-            {% for t in tarifas if t.es_flete or t.id == c.tarifa_id %}<option value="{{ t.id }}" {{ 'selected' if t.id == c.tarifa_id }}>{{ t.etiqueta }}{% if t.valor %} · {{ t.valor|moneda(t.moneda) }}{% endif %}{% if t.estado != 'vigente' %} · ⚠ {{ {'vencida':'vencida','futura':'aún no vigente','sin_valor':'sin valor'}[t.estado] }}{% endif %}</option>{% endfor %}
+            {% for t in tarifas if t.es_transportista or t.es_flete or t.id == c.tarifa_id %}<option value="{{ t.id }}" {{ 'selected' if t.id == c.tarifa_id }}>{{ t.etiqueta }}{% if t.valor %} · {{ t.valor|moneda(t.moneda) }}{% endif %}{% if t.estado != 'vigente' %} · ⚠ {{ {'vencida':'vencida','futura':'aún no vigente','sin_valor':'sin valor'}[t.estado] }}{% endif %}</option>{% endfor %}
           </select>
           <div class="ayuda" id="aviso-tarifa"></div></div>
         <div class="c-3"><label>Origen</label><input type="text" name="origen" id="origen" value="{{ c.origen or '' }}" placeholder="Bogotá, CO"></div>
@@ -125,7 +125,7 @@ const EXISTENTES = [
   {% for i in c.items %}{{ {"servicio": i.servicio_id or "", "tarifa": i.tarifa_id or "", "descripcion": i.descripcion, "cantidad": i.cantidad, "unidad": i.unidad, "precio": i.precio, "iva": i.aplica_iva, "obs": i.observacion or ""}|tojson }},{% endfor %}
 ];
 const TARIFAS = [
-  {% for t in tarifas %}{{ {"id": t.id, "codigo": t.codigo, "servicio": t.servicio_id, "origen": t.origen, "destino": t.destino, "proveedor": t.proveedor, "flete": t.es_flete, "cliente": t.cliente_id or "", "cliente_nombre": t.cliente.razon_social if t.cliente else "", "proceso": t.proceso or "", "moneda": t.moneda, "valor": t.valor, "estado": t.estado, "hasta": t.vigencia_hasta|fecha if t.vigencia_hasta else ""}|tojson }},{% endfor %}
+  {% for t in tarifas %}{{ {"id": t.id, "codigo": t.codigo, "servicio": t.servicio_id, "origen": t.origen, "destino": t.destino, "proveedor": t.proveedor_nombre, "flete": t.es_transportista, "cliente": t.cliente_id or "", "cliente_nombre": t.cliente.razon_social if t.cliente else "", "proceso": t.proceso or "", "moneda": t.moneda, "valor": t.valor, "estado": t.estado, "hasta": t.vigencia_hasta|fecha if t.vigencia_hasta else ""}|tojson }},{% endfor %}
 ];
 const ESTADO_TXT = {vigente: 'vigente', vencida: 'VENCIDA', futura: 'aún no vigente', sin_valor: 'SIN VALOR'};
 const norm = t => (t || '').toUpperCase().replace(/\s+/g, ' ').trim();
@@ -245,7 +245,7 @@ document.getElementById('tarifa-base').addEventListener('change', e => {
   if (!t) { aviso.textContent = ''; return; }
   document.getElementById('origen').value = t.origen;
   document.getElementById('destino').value = t.destino;
-  document.getElementById('transportista').value = t.proveedor;
+  if (t.flete) document.getElementById('transportista').value = t.proveedor;
   document.getElementById('moneda').value = t.moneda;
   // agrega el servicio de la tarifa si aún no está en la lista
   const ya = [...cuerpo.querySelectorAll('[name=item_servicio]')].some(i => String(i.value) === String(t.servicio));

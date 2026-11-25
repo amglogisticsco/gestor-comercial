@@ -167,6 +167,69 @@ class Servicio(db.Model):
     activo = db.Column(db.Boolean, default=True)
 
 
+TIPOS_PROVEEDOR = ["Naviera", "Aerolínea", "Transporte terrestre", "Agencia de aduanas", "Puerto / terminal",
+                   "Aseguradora", "Bodega", "Agente internacional", "Servicio propio", "Otro"]
+TIPOS_TRANSPORTISTA = ("Naviera", "Aerolínea")  # los únicos que ve el cliente en la cotización
+REDES_AGENTES = ["WCA", "JCtrans", "GLA", "FIATA", "Globalink", "X2", "Independiente"]
+
+
+class Proveedor(db.Model):
+    """Proveedores y agentes internacionales (Directorio)."""
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(20), default="")  # PRV-0001
+    nombre = db.Column(db.String(160), nullable=False)
+    tipo = db.Column(db.String(40), default="Otro")
+    nit = db.Column(db.String(40), default="")
+    contacto_nombre = db.Column(db.String(120), default="")
+    cargo = db.Column(db.String(80), default="")
+    email = db.Column(db.String(160), default="")
+    email_cc = db.Column(db.String(300), default="")
+    telefono = db.Column(db.String(60), default="")
+    telefono_empresa = db.Column(db.String(60), default="")
+    ciudad = db.Column(db.String(80), default="")
+    pais = db.Column(db.String(80), default="")
+    web = db.Column(db.String(160), default="")
+    # Solo agentes internacionales
+    red = db.Column(db.String(60), default="")
+    cobertura = db.Column(db.String(300), default="")  # países / puertos / rutas que manejan
+    servicios_ofrecidos = db.Column(db.String(300), default="")  # Aéreo, FCL, LCL, Courier…
+    notas = db.Column(db.Text, default="")
+    activo = db.Column(db.Boolean, default=True)
+    creado = db.Column(db.DateTime, default=datetime.now)
+
+    tarifas = db.relationship("Tarifa", back_populates="proveedor_ref", order_by="Tarifa.codigo")
+
+    @property
+    def es_agente(self):
+        return self.tipo == "Agente internacional"
+
+    @property
+    def es_transportista(self):
+        return self.tipo in TIPOS_TRANSPORTISTA
+
+
+def tipo_proveedor_sugerido(servicio):
+    """Tipo probable del proveedor según el servicio de la tarifa."""
+    if servicio is None:
+        return "Otro"
+    texto = _norm(f"{servicio.categoria} {servicio.nombre}")
+    if "MARÍTIMO" in texto or "MARITIMO" in texto:
+        return "Naviera"
+    if "AÉREO" in texto or "AEREO" in texto or "AEROLÍNEA" in texto or "AEROLINEA" in texto:
+        return "Aerolínea"
+    if "TERRESTRE" in texto or "TRANSPORTE" in texto or "INLAND" in texto:
+        return "Transporte terrestre"
+    if "ADUAN" in texto or "AGENCIAMIENTO" in texto:
+        return "Agencia de aduanas"
+    if "PUERTO" in texto or "PORTUARIO" in texto:
+        return "Puerto / terminal"
+    if "SEGURO" in texto or "PÓLIZA" in texto or "POLIZA" in texto:
+        return "Aseguradora"
+    if "BODEG" in texto or "ALMACEN" in texto or "DEPÓSITO" in texto:
+        return "Bodega"
+    return "Otro"
+
+
 class Tarifa(db.Model):
     """Tarifa por servicio, ruta y proveedor, con vigencia (hoja "Tarifas" del Excel)."""
     id = db.Column(db.Integer, primary_key=True)
@@ -176,7 +239,8 @@ class Tarifa(db.Model):
     proceso = db.Column(db.String(30), default="")  # Importación, Exportación… vacío = cualquiera
     origen = db.Column(db.String(120), default="")
     destino = db.Column(db.String(120), default="")
-    proveedor = db.Column(db.String(120), default="")
+    proveedor = db.Column(db.String(120), default="")  # nombre (texto) — se mantiene sincronizado
+    proveedor_id = db.Column(db.Integer, db.ForeignKey("proveedor.id"), nullable=True)
     moneda = db.Column(db.String(3), default="USD")
     valor = db.Column(db.Float, default=0)
     vigencia_desde = db.Column(db.Date, nullable=True)
@@ -186,6 +250,17 @@ class Tarifa(db.Model):
 
     servicio = db.relationship("Servicio")
     cliente = db.relationship("Cliente")
+    proveedor_ref = db.relationship("Proveedor", back_populates="tarifas")
+
+    @property
+    def proveedor_nombre(self):
+        return self.proveedor_ref.nombre if self.proveedor_ref else (self.proveedor or "")
+
+    @property
+    def es_transportista(self):
+        """La tarifa trae naviera/aerolínea visible para el cliente."""
+        return bool(self.proveedor_ref and self.proveedor_ref.es_transportista) or (
+            not self.proveedor_ref and self.es_flete and bool(self.proveedor))
 
     @property
     def aplica_a(self):
@@ -223,7 +298,7 @@ class Tarifa(db.Model):
 
     @property
     def etiqueta(self):
-        partes = [self.codigo, self.servicio.nombre if self.servicio else "", self.ruta, self.proveedor,
+        partes = [self.codigo, self.servicio.nombre if self.servicio else "", self.ruta, self.proveedor_nombre,
                   self.cliente.razon_social if self.cliente else "", self.proceso]
         return " · ".join(p for p in partes if p)
 
@@ -505,6 +580,16 @@ class Correo(db.Model):
     enviado_en = db.Column(db.DateTime, nullable=True)
 
     cliente = db.relationship("Cliente", back_populates="correos")
+    proveedor_id = db.Column(db.Integer, db.ForeignKey("proveedor.id"), nullable=True)
+    proveedor = db.relationship("Proveedor")
+
+    @property
+    def destinatario_nombre(self):
+        if self.cliente:
+            return self.cliente.razon_social
+        if self.proveedor:
+            return self.proveedor.nombre
+        return self.para
 
     @property
     def adjunto(self):
@@ -695,7 +780,8 @@ def _clave(texto):
 
 def asignar_codigos():
     """Da código a clientes (CLI-0001), servicios (SER-001) y tarifas (TAR-0001) que no lo tengan."""
-    for modelo, prefijo, digitos in ((Cliente, "CLI", 4), (Servicio, "SER", 3), (Tarifa, "TAR", 4)):
+    for modelo, prefijo, digitos in ((Cliente, "CLI", 4), (Servicio, "SER", 3), (Tarifa, "TAR", 4),
+                                     (Proveedor, "PRV", 4)):
         for objeto in modelo.query.filter((modelo.codigo == "") | (modelo.codigo.is_(None))).order_by(modelo.id):
             objeto.codigo = siguiente_numero(modelo, prefijo, digitos=digitos, por_anio=False, campo="codigo")
             db.session.flush()
@@ -713,6 +799,32 @@ def asegurar_servicios_amg():
             servicio.codigo = codigo
             codigos.add(codigo)
         servicio.categoria = servicio.categoria or categoria
+    db.session.flush()
+
+
+def obtener_proveedor(nombre, servicio=None):
+    """Proveedor por nombre (sin distinguir mayúsculas/tildes); lo crea si no existe."""
+    nombre = " ".join((nombre or "").split())
+    if not nombre:
+        return None
+    clave = _clave(nombre)
+    for p in Proveedor.query.all():
+        if _clave(p.nombre) == clave:
+            return p
+    empresa = Empresa.query.first()
+    tipo = "Servicio propio" if empresa and _clave(empresa.nombre) == clave else tipo_proveedor_sugerido(servicio)
+    proveedor = Proveedor(nombre=nombre, tipo=tipo)
+    db.session.add(proveedor)
+    db.session.flush()
+    return proveedor
+
+
+def vincular_proveedores():
+    """Convierte el texto de proveedor de las tarifas en fichas del Directorio."""
+    for tarifa in Tarifa.query.filter(Tarifa.proveedor_id.is_(None), Tarifa.proveedor != "").all():
+        proveedor = obtener_proveedor(tarifa.proveedor, tarifa.servicio)
+        if proveedor:
+            tarifa.proveedor_id = proveedor.id
     db.session.flush()
 
 
@@ -739,5 +851,6 @@ def sembrar_datos():
             db.session.add(Servicio(nombre=nombre, unidad=unidad, aplica_iva=iva, grupo=grupo))
         db.session.flush()
     asegurar_servicios_amg()
+    vincular_proveedores()
     asignar_codigos()
     db.session.commit()

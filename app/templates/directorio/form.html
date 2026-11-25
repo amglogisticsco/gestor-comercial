@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% set nombre_tipo = 'agente internacional' if p.es_agente else 'proveedor' %}
+{% block titulo %}{{ p.nombre if p.id else 'Nuevo ' ~ nombre_tipo }}{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div>
+  <div class="migas"><a href="{{ url_for('directorio.inicio') }}">Directorio</a>{% if p.id %} / <a href="{{ url_for('directorio.ver', ident=p.id) }}">{{ p.nombre }}</a>{% endif %}</div>
+  <h1>{{ 'Editar ' ~ p.nombre if p.id else 'Nuevo ' ~ nombre_tipo }}</h1>
+</div></div>
+<form method="post" class="tarjeta" style="max-width:980px">
+  {{ csrf() }}
+  <div class="seccion-form"><h3>Empresa</h3><div class="form-grid">
+    <div class="c-6"><label>Nombre o razón social</label><input type="text" name="nombre" value="{{ p.nombre or '' }}" required autofocus></div>
+    <div class="c-3"><label>Tipo</label>
+      <select name="tipo" id="tipo">{% for t in tipos %}<option {{ 'selected' if t == p.tipo }}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="c-3"><label>NIT / Tax ID <span class="opc">(opcional)</span></label><input type="text" name="nit" value="{{ p.nit or '' }}"></div>
+    <div class="c-3"><label>Teléfono de la empresa</label><input type="text" name="telefono_empresa" value="{{ p.telefono_empresa or '' }}"></div>
+    <div class="c-3"><label>Ciudad</label><input type="text" name="ciudad" value="{{ p.ciudad or '' }}"></div>
+    <div class="c-3"><label>País</label><input type="text" name="pais" value="{{ p.pais or '' }}"></div>
+    <div class="c-3"><label>Sitio web</label><input type="text" name="web" value="{{ p.web or '' }}"></div>
+    <div class="c-12 ayuda" id="ayuda-tipo"></div>
+  </div></div>
+  <div class="seccion-form" id="bloque-agente"><h3>Agente internacional</h3><div class="form-grid">
+    <div class="c-4"><label>Red / alianza</label><input type="text" name="red" list="l-redes" value="{{ p.red or '' }}" placeholder="WCA, JCtrans…">
+      <datalist id="l-redes">{% for r in redes %}<option value="{{ r }}">{% endfor %}</datalist></div>
+    <div class="c-8"><label>Servicios que ofrece</label><input type="text" name="servicios_ofrecidos" value="{{ p.servicios_ofrecidos or '' }}" placeholder="Aéreo, marítimo FCL/LCL, aduanas, courier…"></div>
+    <div class="c-12"><label>Cobertura <span class="opc">(países, puertos o rutas)</span></label><input type="text" name="cobertura" value="{{ p.cobertura or '' }}" placeholder="China (Shanghái, Ningbo), Panamá, Trinidad y Tobago…"></div>
+  </div></div>
+  <div class="seccion-form"><h3>Contacto</h3><div class="form-grid">
+    <div class="c-6"><label>Nombre del contacto</label><input type="text" name="contacto_nombre" value="{{ p.contacto_nombre or '' }}"></div>
+    <div class="c-6"><label>Cargo</label><input type="text" name="cargo" value="{{ p.cargo or '' }}"></div>
+    <div class="c-6"><label>Correo</label><input type="email" name="email" value="{{ p.email or '' }}"><div class="ayuda">A este correo se envían las solicitudes de tarifa.</div></div>
+    <div class="c-6"><label>Celular / WhatsApp</label><input type="text" name="telefono" value="{{ p.telefono or '' }}"></div>
+    <div class="c-12"><label>Correos en copia <span class="opc">(opcional)</span></label><input type="text" name="email_cc" value="{{ p.email_cc or '' }}" placeholder="pricing@agente.com, ops@agente.com"></div>
+  </div></div>
+  <div class="seccion-form"><h3>Notas internas</h3>
+    <textarea name="notas" rows="3" placeholder="Condiciones de crédito, tiempos de respuesta, observaciones…">{{ p.notas or '' }}</textarea>
+    {% if p.id %}<label class="check" style="margin-top:12px"><input type="hidden" name="activo" value="0"><input type="checkbox" name="activo" value="1" {{ 'checked' if p.activo }}> Activo</label>{% endif %}
+  </div>
+  <div class="pie-form">
+    <a class="btn" href="{{ url_for('directorio.ver', ident=p.id) if p.id else url_for('directorio.inicio') }}">Cancelar</a>
+    <button class="btn btn-primario" type="submit">Guardar</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+const tipo = document.getElementById('tipo');
+function actualizar() {
+  document.getElementById('bloque-agente').style.display = tipo.value === 'Agente internacional' ? '' : 'none';
+  document.getElementById('ayuda-tipo').textContent = ['Naviera', 'Aerolínea'].includes(tipo.value)
+    ? 'Este proveedor sí aparece en la cotización del cliente (campo Naviera / Aerolínea).'
+    : 'Proveedor interno: no aparece en la cotización que recibe el cliente.';
+}
+tipo.addEventListener('change', actualizar); actualizar();
+</script>
+{% endblock %}

@@ -15,7 +15,17 @@
       <select name="servicio_id" required><option value="">Selecciona…</option>
         {% for s in servicios %}<option value="{{ s.id }}" {{ 'selected' if s.id == t.servicio_id }}>{{ s.codigo }} · {{ s.nombre }}</option>{% endfor %}
       </select></div>
-    <div class="c-6"><label>Proveedor <span class="opc">(naviera, aerolínea, transportador…)</span></label><input type="text" name="proveedor" value="{{ t.proveedor or '' }}"></div>
+    <div class="c-6"><label>Proveedor</label>
+      <select name="proveedor_id" id="proveedor-sel">
+        <option value="">Sin proveedor</option>
+        {% for tipo, grupo in proveedores|groupby('tipo') %}<optgroup label="{{ tipo }}">{% for p in grupo %}<option value="{{ p.id }}" {{ 'selected' if p.id == t.proveedor_id }}>{{ p.nombre }}</option>{% endfor %}</optgroup>{% endfor %}
+        <option value="nuevo">+ Crear proveedor nuevo…</option>
+      </select>
+      <div id="nuevo-prov" style="display:none;margin-top:8px;gap:8px" class="form-grid">
+        <div class="c-7"><input type="text" name="nuevo_proveedor" placeholder="Nombre del proveedor"></div>
+        <div class="c-5"><select name="nuevo_tipo">{% for x in tipos_proveedor if x != 'Agente internacional' %}<option>{{ x }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="ayuda">Solo las <strong>navieras y aerolíneas</strong> aparecen en la cotización del cliente.</div></div>
     <div class="c-6"><label>Aplica a</label>
       <select name="cliente_id"><option value="">Todos los clientes (tarifa general)</option>
         {% for c in clientes %}<option value="{{ c.id }}" {{ 'selected' if c.id == t.cliente_id }}>Solo {{ c.razon_social }}</option>{% endfor %}
@@ -35,4 +45,11 @@
   </div></div>
   <div class="pie-form"><a class="btn" href="{{ url_for('tarifas.lista') }}">Cancelar</a><button class="btn btn-primario" type="submit">Guardar tarifa</button></div>
 </form>
+{% endblock %}
+{% block scripts %}
+<script>
+const ps = document.getElementById('proveedor-sel');
+const np = () => document.getElementById('nuevo-prov').style.display = ps.value === 'nuevo' ? 'grid' : 'none';
+ps.addEventListener('change', np); np();
+</script>
 {% endblock %}

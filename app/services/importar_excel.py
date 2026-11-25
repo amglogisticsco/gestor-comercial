@@ -7,7 +7,7 @@ import openpyxl
 
 from .. import db
 from ..models import (GRUPOS_ANTICIPO, Cliente, Cotizacion, Empresa, ItemCotizacion, Servicio, Tarifa, _clave,
-                      asignar_codigos)
+                      asignar_codigos, obtener_proveedor)
 
 ESTADOS_EXCEL = {"borrador": "borrador", "enviada": "enviada", "aceptada": "aprobada",
                  "rechazada": "rechazada", "vencida": "enviada"}
@@ -164,6 +164,8 @@ def importar(archivo, incluir_cotizaciones=True):
             if proceso:
                 tarifa.proceso = proceso
             tarifa.origen, tarifa.destino, tarifa.proveedor = origen, destino, proveedor
+            ficha = obtener_proveedor(proveedor, servicio) if proveedor else None
+            tarifa.proveedor_id = ficha.id if ficha else None
             tarifa.moneda = (_texto(fila.get("moneda")) or "USD").upper()[:3]
             tarifa.valor = valor
             tarifa.vigencia_desde = _fecha(fila.get("vigencia desde"))

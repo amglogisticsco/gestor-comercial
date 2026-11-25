@@ -84,6 +84,41 @@ def borrador_libre(cliente):
     return _crear(cliente, "libre", "", f"Buen día, {cliente.nombre_saludo}:\n\n\n\nCordial saludo,")
 
 
+def borrador_solicitud_tarifa(proveedor, cot=None, idioma="es"):
+    """Pide tarifa a un proveedor o agente, con los datos de la operación si hay cotización."""
+    empresa = Empresa.actual()
+    saludo = (proveedor.contacto_nombre or "").split()[0].capitalize() if proveedor.contacto_nombre else ""
+    datos = []
+    if cot:
+        etiquetas_en = {"Origen": "Origin", "Destino": "Destination", "Modalidad": "Mode", "Incoterm": "Incoterm",
+                        "Tipo de carga": "Cargo type", "Contenedor": "Equipment", "Peso / Volumen": "Weight / Volume",
+                        "Piezas": "Pieces", "Mercancía": "Commodity", "Dimensiones": "Dimensions", "Ruta": "Routing"}
+        omitir = {"Naviera / Aerolínea", "Tiempo tránsito", "Días libres origen", "Días libres destino"}
+        for k, v in cot.datos_servicio:
+            if k not in omitir:
+                datos.append(f"- {etiquetas_en.get(k, k) if idioma == 'en' else k}: {v}")
+        if cot.tipo_operacion and idioma != "en":
+            datos.insert(0, f"- Operación: {cot.tipo_operacion}")
+    bloque = ("\n".join(datos) + "\n\n") if datos else "- Origen:\n- Destino:\n- Mercancía:\n- Peso / volumen:\n- Incoterm:\n\n"
+    if idioma == "en":
+        asunto = "Rate request" + (f" – {cot.origen} to {cot.destino}" if cot and cot.origen and cot.destino else "") + f" – {empresa.nombre}"
+        bloque = bloque.replace("- Origen:", "- Origin:").replace("- Destino:", "- Destination:").replace(
+            "- Mercancía:", "- Commodity:").replace("- Peso / volumen:", "- Weight / volume:")
+        cuerpo = (f"Dear {saludo or 'partner'},\n\nGood day. We kindly request your best rates for the following shipment:\n\n"
+                  f"{bloque}Please include validity, transit time, free days and any local charges.\n\n"
+                  "Thank you in advance for your prompt reply.\n\nBest regards,")
+    else:
+        asunto = "Solicitud de tarifa" + (f" – {cot.origen} → {cot.destino}" if cot and cot.origen and cot.destino else "") + f" – {empresa.nombre}"
+        cuerpo = (f"Buen día{', ' + saludo if saludo else ''}:\n\nReciba un cordial saludo. Le agradecemos cotizarnos la siguiente operación:\n\n"
+                  f"{bloque}Por favor indíquenos vigencia, tiempo de tránsito, días libres y gastos adicionales si aplican.\n\n"
+                  "Quedamos atentos.\n\nCordial saludo,")
+    correo = Correo(proveedor=proveedor, tipo="proveedor", para=proveedor.email or "", cc=proveedor.email_cc or "",
+                    asunto=asunto, cuerpo=cuerpo)
+    db.session.add(correo)
+    db.session.commit()
+    return correo
+
+
 def _crear(cliente, tipo, asunto, cuerpo, adjunto_tipo=None, adjunto_id=None):
     correo = Correo(
         cliente=cliente, tipo=tipo, para=cliente.email or "", cc=cliente.email_cc or "",

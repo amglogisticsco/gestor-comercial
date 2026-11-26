@@ -85,6 +85,17 @@ def test_flujo_completo(cliente_http):
         assert borrador.estado == "borrador"
         bid = borrador.id
 
+    # Cambiar el idioma del borrador: inglés y de vuelta a español
+    r = post(c, f"/correos/{bid}/idioma", {"idioma": "en", "para": "x@y.test"}, desde=f"/correos/{bid}")
+    with c.app.app_context():
+        b = db.session.get(Correo, bid)
+        assert b.idioma == "en" and b.asunto.startswith("Quotation") and "Dear" in b.cuerpo and b.para == "x@y.test"
+        assert b.cliente.idioma == "en"
+    post(c, f"/correos/{bid}/idioma", {"idioma": "es"}, desde=f"/correos/{bid}")
+    with c.app.app_context():
+        borrador = db.session.get(Correo, bid)
+        assert borrador.asunto.startswith("Cotización") and "Buen día" in borrador.cuerpo
+
     # Enviar (modo archivo) tras la revisión
     r = post(c, f"/correos/{bid}", {"para": "carlos@andina.test", "cc": "", "asunto": borrador.asunto,
                                     "cuerpo": borrador.cuerpo, "accion": "enviar"})
@@ -505,3 +516,4 @@ def test_actualizar_tarifa_con_historial(cliente_http):
         assert Cotizacion.query.one().items[0].precio == 1450  # las cotizaciones hechas no cambian
     assert "Historial de cambios" in c.get(f"/tarifas/{tid}").get_data(as_text=True)
     assert "Actualizar" in c.get("/tarifas/").get_data(as_text=True)
+

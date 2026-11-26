@@ -36,9 +36,69 @@ def firma(empresa):
     return "\n".join(l for l in lineas if l)
 
 
-def borrador_cotizacion(cot):
+IDIOMAS = {"es": "Español", "en": "English"}
+_MESES_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+             "November", "December"]
+_OPERACION_EN = {"Importación": "import", "Exportación": "export", "Zona Franca": "free trade zone", "OTM": "OTM",
+                 "DTA": "DTA", "Proceso de aduana": "customs", "Etiquetado": "labeling", "Nacional": "domestic"}
+_MODALIDAD_EN = {"Marítimo": "ocean", "Aéreo": "air", "Terrestre": "land", "Multimodal": "multimodal"}
+
+
+def _moneda_en(valor, codigo):
+    simbolo = moneda(0, codigo).split()[0]
+    return f"{simbolo} {(valor or 0):,.{0 if codigo == 'COP' else 2}f}"
+
+
+def _fecha_en(valor):
+    return f"{_MESES_EN[valor.month - 1]} {valor.day}, {valor.year}" if valor else "—"
+
+
+def _resumen_en(cot):
+    partes = [_MODALIDAD_EN.get(cot.modalidad, (cot.modalidad or "").lower()),
+              _OPERACION_EN.get(cot.tipo_operacion, (cot.tipo_operacion or "").lower())]
+    partes = [p for p in partes if p]
+    ruta = cot.ruta or (f"{cot.origen} – {cot.destino}" if cot.origen and cot.destino else "")
+    if not partes and not ruta:
+        return "the requested services"
+    return "the " + " ".join(partes + ["shipment"] + ([ruta] if ruta else []))
+
+
+def _saludo(nombre, idioma):
+    if idioma == "en":
+        return f"Dear {nombre or 'Sir or Madam'},"
+    return f"Buen día{', ' + nombre if nombre else ''}:"
+
+
+def _primer_nombre(texto):
+    return texto.split()[0].capitalize() if (texto or "").strip() else ""
+
+
+def idioma_preferido(contacto):
+    """Último idioma usado con el cliente o proveedor; los agentes internacionales arrancan en inglés."""
+    if contacto is None:
+        return "es"
+    if getattr(contacto, "idioma", "") in IDIOMAS:
+        return contacto.idioma
+    return "en" if getattr(contacto, "es_agente", False) else "es"
+
+
+def _textos_cotizacion(cot, idioma):
     empresa = Empresa.actual()
-    cliente = cot.cliente
+    nombre = cot.cliente.nombre_saludo
+    if idioma == "en":
+        if cot.revision:
+            asunto = f"Quotation {cot.numero_base} – Revision {cot.revision} – {empresa.nombre}"
+            intro = (f"We are pleased to send you revision {cot.revision} of quotation {cot.numero_base} "
+                     f"({cot.numero}), including the requested adjustments, for ")
+        else:
+            asunto = f"Quotation {cot.numero} – {empresa.nombre}"
+            intro = f"We are pleased to send you quotation {cot.numero} for "
+        cuerpo = (f"{_saludo(nombre, 'en')}\n\n{intro}{_resumen_en(cot)}, for a total amount of "
+                  f"{_moneda_en(cot.total, cot.moneda)}.\n\n"
+                  f"This offer is valid for {cot.validez_dias} days (until {_fecha_en(cot.vence)}). "
+                  "Please do not hesitate to contact us with any comments or adjustments you may need.\n\n"
+                  "Best regards,")
+        return asunto, cuerpo
     if cot.revision:
         asunto = f"Cotización {cot.numero_base} – Revisión {cot.revision} – {empresa.nombre}"
         intro = (f"Reciba un cordial saludo. Adjuntamos la revisión {cot.revision} de la cotización {cot.numero_base} "
@@ -47,62 +107,62 @@ def borrador_cotizacion(cot):
         asunto = f"Cotización {cot.numero} – {empresa.nombre}"
         intro = f"Reciba un cordial saludo. Adjuntamos la cotización {cot.numero} correspondiente a "
     cuerpo = (
-        f"Buen día, {cliente.nombre_saludo}:\n\n"
+        f"{_saludo(nombre, 'es')}\n\n"
         f"{intro}"
         f"{cot.resumen}, por un valor total de {moneda(cot.total, cot.moneda)}.\n\n"
         f"La oferta tiene una vigencia de {cot.validez_dias} días (hasta el {fecha_larga(cot.vence)}). "
         "Quedamos atentos a sus comentarios o a cualquier ajuste que requiera.\n\n"
         "Cordial saludo,"
     )
-    return _crear(cliente, "cotizacion", asunto, cuerpo, "cotizacion", cot.id)
+    return asunto, cuerpo
 
 
-def borrador_anticipo(ant):
+def _textos_anticipo(ant, idioma):
     empresa = Empresa.actual()
-    cliente = ant.cliente
-    referencia = f" (cotización {ant.cotizacion.numero})" if ant.cotizacion else ""
+    nombre = ant.cliente.nombre_saludo
     do = f", D.O. {ant.do_numero}" if ant.do_numero else ""
+    pie = f"\n\n{empresa.pie_anticipo}" if empresa.pie_anticipo else ""
+    if idioma == "en":
+        referencia = f" (quotation {ant.cotizacion.numero})" if ant.cotizacion else ""
+        limite = f", preferably before {_fecha_en(ant.fecha_limite)}" if ant.fecha_limite else ""
+        banco = f"\n\nPayment can be made to:\n{empresa.datos_bancarios}" if empresa.datos_bancarios else ""
+        asunto = f"Funds request {ant.numero}{do} – {empresa.nombre}"
+        cuerpo = (f"{_saludo(nombre, 'en')}\n\nIn order to proceed with the operation{referencia}{do}, please find "
+                  f"attached funds request {ant.numero} for {_moneda_en(ant.total, 'COP')}{limite}.{banco}{pie}\n\n"
+                  "Kindly send us the proof of payment by replying to this email.\n\nBest regards,")
+        return asunto, cuerpo
+    referencia = f" (cotización {ant.cotizacion.numero})" if ant.cotizacion else ""
     limite = f", preferiblemente antes del {fecha_larga(ant.fecha_limite)}" if ant.fecha_limite else ""
     banco = f"\n\nPuede realizar la consignación a:\n{empresa.datos_bancarios}" if empresa.datos_bancarios else ""
-    pie = f"\n\n{empresa.pie_anticipo}" if empresa.pie_anticipo else ""
     asunto = f"Solicitud de fondos {ant.numero}{do} – {empresa.nombre}"
     cuerpo = (
-        f"Buen día, {cliente.nombre_saludo}:\n\n"
+        f"{_saludo(nombre, 'es')}\n\n"
         f"Reciba un cordial saludo. Para dar continuidad a la operación{referencia}{do}, adjuntamos la "
         f"solicitud de fondos {ant.numero} por valor de {moneda(ant.total, 'COP')}{limite}.{banco}{pie}\n\n"
         "Le agradecemos enviarnos el soporte de pago respondiendo a este correo.\n\n"
         "Cordial saludo,"
     )
-    return _crear(cliente, "anticipo", asunto, cuerpo, "anticipo", ant.id)
+    return asunto, cuerpo
 
 
-def borrador_cumpleanos(cliente):
+def _textos_cumpleanos(cliente, idioma):
+    from ..models import CUMPLE_ASUNTO_EN, CUMPLE_MENSAJE_EN
+
     empresa = Empresa.actual()
     datos = {"nombre": cliente.nombre_saludo, "empresa": empresa.nombre, "cliente": cliente.razon_social}
-    return _crear(
-        cliente, "cumpleanos",
-        _rellenar(empresa.cumple_asunto, **datos),
-        _rellenar(empresa.cumple_mensaje, **datos),
-    )
+    if idioma == "en":
+        return _rellenar(CUMPLE_ASUNTO_EN, **datos), _rellenar(CUMPLE_MENSAJE_EN, **datos)
+    return _rellenar(empresa.cumple_asunto, **datos), _rellenar(empresa.cumple_mensaje, **datos)
 
 
-def borrador_libre_proveedor(proveedor):
-    saludo = (proveedor.contacto_nombre or "").split()[0].capitalize() if proveedor.contacto_nombre else ""
-    correo = Correo(proveedor=proveedor, tipo="proveedor", para=proveedor.email or "", cc=proveedor.email_cc or "",
-                    asunto="", cuerpo=f"Buen día{', ' + saludo if saludo else ''}:\n\n\n\nCordial saludo,")
-    db.session.add(correo)
-    db.session.commit()
-    return correo
+def _textos_libre(nombre, idioma, asunto=""):
+    cierre = "Best regards," if idioma == "en" else "Cordial saludo,"
+    return asunto, f"{_saludo(nombre, idioma)}\n\n\n\n{cierre}"
 
 
-def borrador_libre(cliente):
-    return _crear(cliente, "libre", "", f"Buen día, {cliente.nombre_saludo}:\n\n\n\nCordial saludo,")
-
-
-def borrador_solicitud_tarifa(proveedor, cot=None, idioma="es"):
-    """Pide tarifa a un proveedor o agente, con los datos de la operación si hay cotización."""
+def _textos_solicitud(proveedor, cot, idioma):
     empresa = Empresa.actual()
-    saludo = (proveedor.contacto_nombre or "").split()[0].capitalize() if proveedor.contacto_nombre else ""
+    saludo = _primer_nombre(proveedor.contacto_nombre)
     datos = []
     if cot:
         etiquetas_en = {"Origen": "Origin", "Destino": "Destination", "Modalidad": "Mode", "Incoterm": "Incoterm",
@@ -116,35 +176,107 @@ def borrador_solicitud_tarifa(proveedor, cot=None, idioma="es"):
         for k, v in cot.datos_servicio:
             if k not in omitir:
                 datos.append(f"- {etiquetas_en.get(k, k) if idioma == 'en' else k}: {v}")
-        if cot.tipo_operacion and idioma != "en":
-            datos.insert(0, f"- Operación: {cot.tipo_operacion}")
+        if cot.tipo_operacion:
+            if idioma == "en":
+                datos.insert(0, f"- Operation: {_OPERACION_EN.get(cot.tipo_operacion, cot.tipo_operacion)}")
+            else:
+                datos.insert(0, f"- Operación: {cot.tipo_operacion}")
+    if idioma == "en":
+        bloque = ("\n".join(datos) + "\n\n") if datos else (
+            "- Origin:\n- Destination:\n- Port / airport of loading:\n- Port / airport of discharge:\n"
+            "- Commodity:\n- Weight / volume:\n- Incoterm:\n\n")
+        asunto = "Rate request" + (f" – {cot.origen} to {cot.destino}" if cot and cot.origen and cot.destino else "") + f" – {empresa.nombre}"
+        cuerpo = (f"{_saludo(saludo or 'partner', 'en')}\n\nGood day. We kindly request your best rates for the following shipment:\n\n"
+                  f"{bloque}Please include validity, transit time, free days and any local charges.\n\n"
+                  "Thank you in advance for your prompt reply.\n\nBest regards,")
+        return asunto, cuerpo
     bloque = ("\n".join(datos) + "\n\n") if datos else (
         "- Origen:\n- Destino:\n- Puerto / aeropuerto de origen:\n- Puerto / aeropuerto de destino:\n"
         "- Mercancía:\n- Peso / volumen:\n- Incoterm:\n\n")
-    if idioma == "en":
-        asunto = "Rate request" + (f" – {cot.origen} to {cot.destino}" if cot and cot.origen and cot.destino else "") + f" – {empresa.nombre}"
-        bloque = bloque.replace("- Puerto / aeropuerto de origen:", "- Port / airport of loading:").replace(
-            "- Puerto / aeropuerto de destino:", "- Port / airport of discharge:")
-        bloque = bloque.replace("- Origen:", "- Origin:").replace("- Destino:", "- Destination:").replace(
-            "- Mercancía:", "- Commodity:").replace("- Peso / volumen:", "- Weight / volume:")
-        cuerpo = (f"Dear {saludo or 'partner'},\n\nGood day. We kindly request your best rates for the following shipment:\n\n"
-                  f"{bloque}Please include validity, transit time, free days and any local charges.\n\n"
-                  "Thank you in advance for your prompt reply.\n\nBest regards,")
-    else:
-        asunto = "Solicitud de tarifa" + (f" – {cot.origen} → {cot.destino}" if cot and cot.origen and cot.destino else "") + f" – {empresa.nombre}"
-        cuerpo = (f"Buen día{', ' + saludo if saludo else ''}:\n\nReciba un cordial saludo. Le agradecemos cotizarnos la siguiente operación:\n\n"
-                  f"{bloque}Por favor indíquenos vigencia, tiempo de tránsito, días libres y gastos adicionales si aplican.\n\n"
-                  "Quedamos atentos.\n\nCordial saludo,")
-    correo = Correo(proveedor=proveedor, tipo="proveedor", para=proveedor.email or "", cc=proveedor.email_cc or "",
+    asunto = "Solicitud de tarifa" + (f" – {cot.origen} → {cot.destino}" if cot and cot.origen and cot.destino else "") + f" – {empresa.nombre}"
+    cuerpo = (f"{_saludo(saludo, 'es')}\n\nReciba un cordial saludo. Le agradecemos cotizarnos la siguiente operación:\n\n"
+              f"{bloque}Por favor indíquenos vigencia, tiempo de tránsito, días libres y gastos adicionales si aplican.\n\n"
+              "Quedamos atentos.\n\nCordial saludo,")
+    return asunto, cuerpo
+
+
+def textos(correo, idioma):
+    """Asunto y mensaje del borrador en el idioma pedido (para cambiar de idioma sin rehacerlo)."""
+    from ..models import Cotizacion
+
+    if correo.tipo == "cotizacion" and correo.adjunto:
+        return _textos_cotizacion(correo.adjunto, idioma)
+    if correo.tipo == "anticipo" and correo.adjunto:
+        return _textos_anticipo(correo.adjunto, idioma)
+    if correo.tipo == "cumpleanos" and correo.cliente:
+        return _textos_cumpleanos(correo.cliente, idioma)
+    if correo.tipo == "proveedor" and correo.proveedor and correo.plantilla == "solicitud":
+        cot = db.session.get(Cotizacion, correo.ref_id) if correo.ref_id else None
+        return _textos_solicitud(correo.proveedor, cot, idioma)
+    if correo.proveedor:
+        return _textos_libre(_primer_nombre(correo.proveedor.contacto_nombre), idioma, correo.asunto)
+    nombre = correo.cliente.nombre_saludo if correo.cliente else ""
+    return _textos_libre(nombre, idioma, correo.asunto)
+
+
+def cambiar_idioma(correo, idioma):
+    correo.idioma = idioma
+    correo.asunto, correo.cuerpo = textos(correo, idioma)
+    contacto = correo.cliente or correo.proveedor
+    if contacto is not None:
+        contacto.idioma = idioma  # se recuerda para el próximo correo
+    db.session.commit()
+
+
+def borrador_cotizacion(cot):
+    idioma = idioma_preferido(cot.cliente)
+    asunto, cuerpo = _textos_cotizacion(cot, idioma)
+    return _crear(cot.cliente, "cotizacion", asunto, cuerpo, "cotizacion", cot.id, idioma)
+
+
+def borrador_anticipo(ant):
+    idioma = idioma_preferido(ant.cliente)
+    asunto, cuerpo = _textos_anticipo(ant, idioma)
+    return _crear(ant.cliente, "anticipo", asunto, cuerpo, "anticipo", ant.id, idioma)
+
+
+def borrador_cumpleanos(cliente):
+    idioma = idioma_preferido(cliente)
+    asunto, cuerpo = _textos_cumpleanos(cliente, idioma)
+    return _crear(cliente, "cumpleanos", asunto, cuerpo, idioma=idioma)
+
+
+def borrador_libre_proveedor(proveedor):
+    idioma = idioma_preferido(proveedor)
+    asunto, cuerpo = _textos_libre(_primer_nombre(proveedor.contacto_nombre), idioma)
+    correo = Correo(proveedor=proveedor, tipo="proveedor", plantilla="libre", idioma=idioma,
+                    para=proveedor.email or "", cc=proveedor.email_cc or "", asunto=asunto, cuerpo=cuerpo)
+    db.session.add(correo)
+    db.session.commit()
+    return correo
+
+
+def borrador_libre(cliente):
+    idioma = idioma_preferido(cliente)
+    asunto, cuerpo = _textos_libre(cliente.nombre_saludo, idioma)
+    return _crear(cliente, "libre", asunto, cuerpo, idioma=idioma)
+
+
+def borrador_solicitud_tarifa(proveedor, cot=None, idioma="es"):
+    """Pide tarifa a un proveedor o agente, con los datos de la operación si hay cotización."""
+    asunto, cuerpo = _textos_solicitud(proveedor, cot, idioma)
+    proveedor.idioma = idioma
+    correo = Correo(proveedor=proveedor, tipo="proveedor", plantilla="solicitud", ref_id=cot.id if cot else None,
+                    idioma=idioma, para=proveedor.email or "", cc=proveedor.email_cc or "",
                     asunto=asunto, cuerpo=cuerpo)
     db.session.add(correo)
     db.session.commit()
     return correo
 
 
-def _crear(cliente, tipo, asunto, cuerpo, adjunto_tipo=None, adjunto_id=None):
+def _crear(cliente, tipo, asunto, cuerpo, adjunto_tipo=None, adjunto_id=None, idioma="es"):
     correo = Correo(
-        cliente=cliente, tipo=tipo, para=cliente.email or "", cc=cliente.email_cc or "",
+        cliente=cliente, tipo=tipo, idioma=idioma, para=cliente.email or "", cc=cliente.email_cc or "",
         asunto=asunto, cuerpo=cuerpo, adjunto_tipo=adjunto_tipo, adjunto_id=adjunto_id,
     )
     db.session.add(correo)

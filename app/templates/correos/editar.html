@@ -14,6 +14,10 @@
   {{ csrf() }}
   <div class="tarjeta" style="margin:0">
     <div class="tarjeta-cuerpo"><div class="form-grid">
+      <div class="c-12" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="small muted">Idioma del correo</span>
+        <div class="selector-idioma">{% for k, v in idiomas.items() %}<button type="submit" formaction="{{ url_for('correos.idioma', ident=correo.id) }}" formnovalidate name="idioma" value="{{ k }}" class="{{ 'activo' if (correo.idioma or 'es') == k }}" {{ 'disabled' if (correo.idioma or 'es') == k }} data-confirmar="El asunto y el mensaje se reescribirán en {{ 'inglés' if k == 'en' else 'español' }}. Los adjuntos se conservan. ¿Continuar?">{{ v }}</button>{% endfor %}</div>
+      </div>
       <div class="c-12"><label>Para</label><input type="text" name="para" id="para" value="{{ correo.para }}" required></div>
       <div class="c-12"><label>CC <span class="opc">(opcional, separados por coma)</span></label><input type="text" name="cc" value="{{ correo.cc }}"></div>
       <div class="c-12"><label>Asunto</label><input type="text" name="asunto" id="asunto" value="{{ correo.asunto }}" required></div>

@@ -100,7 +100,7 @@ def editar(ident):
             flash("Borrador guardado.", "ok")
         return redirect(url_for("correos.editar", ident=correo.id))
     return render_template("correos/editar.html", correo=correo, tipos=TIPOS,
-                           firma=servicio_correo.firma(Empresa.actual()),
+                           firma=servicio_correo.firma(Empresa.actual()), idiomas=servicio_correo.IDIOMAS,
                            modo_prueba=current_app.config["SMTP_MODO"] != "smtp")
 
 
@@ -123,6 +123,19 @@ def descargar_archivo(ident, archivo_id):
     if archivo.correo_id != ident or not archivo.ruta.exists():
         abort(404)
     return send_file(archivo.ruta, download_name=archivo.nombre, as_attachment=True, mimetype=archivo.tipo)
+
+
+@bp.route("/<int:ident>/idioma", methods=["POST"])
+def idioma(ident):
+    correo = obtener(Correo, ident)
+    nuevo = request.form.get("idioma")
+    if correo.estado != "enviado" and nuevo in servicio_correo.IDIOMAS:
+        for campo in ("para", "cc"):  # conserva los destinatarios que ya se escribieron
+            if campo in request.form:
+                setattr(correo, campo, request.form.get(campo, "").strip())
+        servicio_correo.cambiar_idioma(correo, nuevo)
+        flash("Borrador en inglés." if nuevo == "en" else "Borrador en español.", "ok")
+    return redirect(url_for("correos.editar", ident=correo.id))
 
 
 @bp.route("/<int:ident>/eliminar", methods=["POST"])

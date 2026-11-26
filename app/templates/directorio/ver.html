@@ -29,7 +29,7 @@
               {% for c in cotizaciones %}<option value="{{ c.id }}">{{ c.numero }} · {{ c.cliente.razon_social }}{% if c.origen or c.destino %} · {{ c.origen }} → {{ c.destino }}{% endif %}</option>{% endfor %}
             </select></div>
           <div class="c-4"><label>Idioma</label><select name="idioma">
-            <option value="es" {{ 'selected' if not p.es_agente }}>Español</option><option value="en" {{ 'selected' if p.es_agente }}>Inglés</option></select></div>
+            {% set idi = p.idioma or ('en' if p.es_agente else 'es') %}<option value="es" {{ 'selected' if idi == 'es' }}>Español</option><option value="en" {{ 'selected' if idi == 'en' }}>Inglés</option></select></div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px;flex-wrap:wrap">
           <span class="small muted">Se prepara un borrador para {{ p.email or 'este proveedor (sin correo registrado)' }}. Lo revisas antes de enviarlo.</span>

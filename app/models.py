@@ -115,6 +115,7 @@ class Cliente(db.Model):
     ciudad = db.Column(db.String(80), default="")
     pais = db.Column(db.String(80), default="Colombia")
     fecha_nacimiento = db.Column(db.Date, nullable=True)
+    idioma = db.Column(db.String(2), default="")  # idioma preferido para correos (es / en)
     notas = db.Column(db.Text, default="")
     activo = db.Column(db.Boolean, default=True)
     creado = db.Column(db.DateTime, default=datetime.now)
@@ -195,6 +196,7 @@ class Proveedor(db.Model):
     red = db.Column(db.String(60), default="")
     cobertura = db.Column(db.String(300), default="")  # países / puertos / rutas que manejan
     servicios_ofrecidos = db.Column(db.String(300), default="")  # Aéreo, FCL, LCL, Courier…
+    idioma = db.Column(db.String(2), default="")  # idioma preferido para correos (es / en)
     notas = db.Column(db.Text, default="")
     activo = db.Column(db.Boolean, default=True)
     creado = db.Column(db.DateTime, default=datetime.now)
@@ -644,6 +646,9 @@ class Correo(db.Model):
     error = db.Column(db.Text, default="")
     creado = db.Column(db.DateTime, default=datetime.now)
     enviado_en = db.Column(db.DateTime, nullable=True)
+    idioma = db.Column(db.String(2), default="es")
+    plantilla = db.Column(db.String(20), default="")  # solicitud | libre (correos a proveedores)
+    ref_id = db.Column(db.Integer, nullable=True)  # cotización usada en una solicitud de tarifa
 
     cliente = db.relationship("Cliente", back_populates="correos")
     proveedor_id = db.Column(db.Integer, db.ForeignKey("proveedor.id"), nullable=True)
@@ -816,6 +821,14 @@ CUMPLE_MENSAJE = (
     "Que este nuevo año esté lleno de salud, éxitos y grandes logros.\n\n"
     "Gracias por su confianza. Es un gusto acompañarle en cada operación.\n\n"
     "Cordial saludo,"
+)
+CUMPLE_ASUNTO_EN = "Happy birthday, {nombre}!"
+CUMPLE_MENSAJE_EN = (
+    "Dear {nombre},\n\n"
+    "On behalf of the whole {empresa} team, we wish you a very happy birthday. "
+    "May this new year bring you health, success and great achievements.\n\n"
+    "Thank you for your trust. It is a pleasure to support you in every shipment.\n\n"
+    "Best regards,"
 )
 
 LOGO_INICIAL = Path(__file__).parent / "static" / "marca" / "logo.png"

@@ -620,6 +620,12 @@ class Correo(db.Model):
     cliente = db.relationship("Cliente", back_populates="correos")
     proveedor_id = db.Column(db.Integer, db.ForeignKey("proveedor.id"), nullable=True)
     proveedor = db.relationship("Proveedor")
+    archivos = db.relationship("ArchivoCorreo", back_populates="correo", cascade="all, delete-orphan",
+                               order_by="ArchivoCorreo.id")
+
+    @property
+    def tamano_archivos(self):
+        return sum(a.tamano or 0 for a in self.archivos)
 
     @property
     def destinatario_nombre(self):
@@ -636,6 +642,31 @@ class Correo(db.Model):
         if self.adjunto_tipo == "anticipo":
             return db.session.get(Anticipo, self.adjunto_id)
         return None
+
+
+class ArchivoCorreo(db.Model):
+    """Archivo que el usuario adjunta a un correo (BL, factura, lista de empaque…)."""
+    id = db.Column(db.Integer, primary_key=True)
+    correo_id = db.Column(db.Integer, db.ForeignKey("correo.id"), nullable=False)
+    nombre = db.Column(db.String(200), nullable=False)  # nombre original
+    archivo = db.Column(db.String(260), nullable=False)  # ruta relativa dentro de UPLOAD_DIR
+    tipo = db.Column(db.String(120), default="application/octet-stream")
+    tamano = db.Column(db.Integer, default=0)
+    creado = db.Column(db.DateTime, default=datetime.now)
+
+    correo = db.relationship("Correo", back_populates="archivos")
+
+    @property
+    def ruta(self):
+        return Path(current_app.config["UPLOAD_DIR"]) / self.archivo
+
+
+@db.event.listens_for(ArchivoCorreo, "after_delete")
+def _borrar_archivo_del_disco(_mapper, _conexion, adjunto):
+    try:
+        adjunto.ruta.unlink(missing_ok=True)
+    except (OSError, RuntimeError):
+        pass
 
 
 def siguiente_numero(modelo, prefijo, digitos=4, por_anio=True, minimo=1, campo="numero"):

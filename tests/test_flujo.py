@@ -435,3 +435,49 @@ def test_revisiones_de_cotizacion(cliente_http):
     post(c, f"/cotizaciones/{r2_id}/eliminar", {}, desde=f"/cotizaciones/{r2_id}")
     with c.app.app_context():
         assert db.session.get(Cotizacion, r1_id).estado == "enviada"
+
+
+def test_adjuntar_archivos_a_correos(cliente_http):
+    import io
+    from app.models import ArchivoCorreo, Correo, Proveedor
+    c = cliente_http
+    post(c, "/setup", {"empresa": "AMG", "nombre": "David", "email": "d@amg.test", "clave": "clave-segura"})
+    with c.app.app_context():
+        p = Proveedor(nombre="Agente Shanghai", tipo="Agente internacional", email="pricing@sh.test")
+        db.session.add(p); db.session.commit(); pid = p.id
+    # Correo libre a un proveedor/agente
+    r = post(c, f"/correos/nuevo-proveedor/{pid}", {}, desde=f"/directorio/proveedores/{pid}")
+    assert "Revisar y enviar" in r.get_data(as_text=True)
+    with c.app.app_context():
+        mid = Correo.query.one().id
+    datos = {"_csrf": csrf(c, f"/correos/{mid}"), "para": "pricing@sh.test", "asunto": "Documentos embarque",
+             "cuerpo": "Adjunto BL", "accion": "adjuntar",
+             "archivos": [(io.BytesIO(b"%PDF-1.4 prueba"), "BL MSCU123.pdf"), (io.BytesIO(b"x"), "virus.exe")]}
+    r = c.post(f"/correos/{mid}", data=datos, content_type="multipart/form-data", follow_redirects=True)
+    texto = r.get_data(as_text=True)
+    assert "1 archivo adjuntado" in texto and "no se adjuntó" in texto and "BL MSCU123.pdf" in texto
+    with c.app.app_context():
+        a = ArchivoCorreo.query.one(); aid, ruta = a.id, a.ruta
+        assert ruta.exists() and Correo.query.one().asunto == "Documentos embarque"
+    # Descargar
+    assert c.get(f"/correos/{mid}/archivos/{aid}").data == b"%PDF-1.4 prueba"
+    # Enviar: el archivo viaja en el correo
+    r = post(c, f"/correos/{mid}", {"para": "pricing@sh.test", "asunto": "Documentos embarque", "cuerpo": "Adjunto BL",
+                                    "accion": "enviar"})
+    from email import message_from_bytes, policy
+    eml = list(c.bandeja.glob("*.eml"))[0]
+    msg = message_from_bytes(eml.read_bytes(), policy=policy.default)
+    assert [x.get_filename() for x in msg.iter_attachments()] == ["BL MSCU123.pdf"]
+    assert "BL MSCU123.pdf" in c.get(f"/correos/{mid}").get_data(as_text=True)  # registro en enviados
+    # Quitar un adjunto de un borrador y borrar el archivo del disco
+    r = post(c, f"/correos/nuevo-proveedor/{pid}", {}, desde=f"/directorio/proveedores/{pid}")
+    with c.app.app_context():
+        mid2 = Correo.query.order_by(Correo.id.desc()).first().id
+    datos = {"_csrf": csrf(c, f"/correos/{mid2}"), "accion": "adjuntar", "archivos": [(io.BytesIO(b"abc"), "lista.xlsx")]}
+    c.post(f"/correos/{mid2}", data=datos, content_type="multipart/form-data")
+    with c.app.app_context():
+        a2 = ArchivoCorreo.query.filter_by(correo_id=mid2).one(); a2id, ruta2 = a2.id, a2.ruta
+    post(c, f"/correos/{mid2}/archivos/{a2id}/quitar", {}, desde=f"/correos/{mid2}")
+    with c.app.app_context():
+        assert ArchivoCorreo.query.filter_by(correo_id=mid2).count() == 0
+    assert not ruta2.exists()

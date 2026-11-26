@@ -27,7 +27,7 @@ def create_app(config_extra=None):
         SQLALCHEMY_DATABASE_URI=os.getenv("DATABASE_URL", f"sqlite:///{instancia / 'gestor.db'}"),
         UPLOAD_DIR=str(instancia / "uploads"),
         BANDEJA_PRUEBA=str(instancia / "correos_prueba"),
-        MAX_CONTENT_LENGTH=5 * 1024 * 1024,
+        MAX_CONTENT_LENGTH=20 * 1024 * 1024,
         ZONA_HORARIA=os.getenv("ZONA_HORARIA", "America/Bogota"),
         CUMPLE_HORA=int(os.getenv("CUMPLE_HORA", "8")),
         PROGRAMADOR=os.getenv("PROGRAMADOR", "1") == "1",

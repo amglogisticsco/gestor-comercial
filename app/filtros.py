@@ -29,6 +29,14 @@ def crudo(valor):
     return str(int(valor)) if float(valor).is_integer() else f"{valor:.2f}".replace(".", ",")
 
 
+def tamano(bytes_):
+    """1234567 → '1,2 MB'"""
+    bytes_ = bytes_ or 0
+    if bytes_ >= 1024 * 1024:
+        return f"{bytes_ / 1048576:.1f} MB".replace(".", ",")
+    return f"{max(1, round(bytes_ / 1024))} KB"
+
+
 def fecha(valor):
     if not valor:
         return "—"
@@ -60,7 +68,7 @@ def parrafos(texto):
 
 def registrar(app):
     app.jinja_env.filters.update(
-        moneda=moneda, numero=numero, crudo=crudo, fecha=fecha, fecha_larga=fecha_larga,
+        moneda=moneda, numero=numero, crudo=crudo, tamano=tamano, fecha=fecha, fecha_larga=fecha_larga,
         dia_mes=dia_mes, fecha_hora=fecha_hora, parrafos=parrafos,
     )
     from .models import ESTADOS_ANTICIPO, ESTADOS_COTIZACION

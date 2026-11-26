@@ -12,6 +12,7 @@
   </div>
   <div class="acciones">
     <a class="btn" href="{{ url_for('directorio.editar', ident=p.id) }}">{{ icono('editar') }} Editar</a>
+    <form class="en-linea" method="post" action="{{ url_for('correos.nuevo_proveedor', proveedor_id=p.id) }}">{{ csrf() }}<button class="btn" type="submit">{{ icono('correo') }} Escribir correo</button></form>
     {% if not p.es_agente %}<a class="btn" href="{{ url_for('tarifas.editar', proveedor_id=p.id) }}">{{ icono('mas') }} Tarifa</a>{% endif %}
   </div>
 </div>

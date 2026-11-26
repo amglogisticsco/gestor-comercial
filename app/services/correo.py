@@ -86,6 +86,15 @@ def borrador_cumpleanos(cliente):
     )
 
 
+def borrador_libre_proveedor(proveedor):
+    saludo = (proveedor.contacto_nombre or "").split()[0].capitalize() if proveedor.contacto_nombre else ""
+    correo = Correo(proveedor=proveedor, tipo="proveedor", para=proveedor.email or "", cc=proveedor.email_cc or "",
+                    asunto="", cuerpo=f"Buen día{', ' + saludo if saludo else ''}:\n\n\n\nCordial saludo,")
+    db.session.add(correo)
+    db.session.commit()
+    return correo
+
+
 def borrador_libre(cliente):
     return _crear(cliente, "libre", "", f"Buen día, {cliente.nombre_saludo}:\n\n\n\nCordial saludo,")
 
@@ -195,6 +204,14 @@ def construir_mensaje(correo):
     msg.add_alternative(
         render_template("email/correo.html", correo=correo, empresa=empresa, firma=texto_firma), subtype="html"
     )
+    import mimetypes
+
+    for archivo in correo.archivos:
+        if archivo.ruta.exists():
+            principal, _, secundario = (archivo.tipo or mimetypes.guess_type(archivo.nombre)[0]
+                                        or "application/octet-stream").partition("/")
+            msg.add_attachment(archivo.ruta.read_bytes(), maintype=principal, subtype=secundario or "octet-stream",
+                               filename=archivo.nombre)
     adjunto = adjunto_pdf(correo)
     if adjunto:
         nombre, contenido = adjunto

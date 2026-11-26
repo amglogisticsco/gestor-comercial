@@ -3,14 +3,14 @@
 {% block titulo %}Revisar correo{% endblock %}
 {% block contenido %}
 <div class="encabezado"><div>
-  <div class="migas"><a href="{{ url_for('correos.lista') }}">Correos</a>{% if correo.cliente %} / <a href="{{ url_for('clientes.ver', ident=correo.cliente.id) }}">{{ correo.cliente.razon_social }}</a>{% endif %}</div>
+  <div class="migas"><a href="{{ url_for('correos.lista') }}">Correos</a>{% if correo.cliente %} / <a href="{{ url_for('clientes.ver', ident=correo.cliente.id) }}">{{ correo.cliente.razon_social }}</a>{% elif correo.proveedor %} / <a href="{{ url_for('directorio.ver', ident=correo.proveedor.id) }}">{{ correo.proveedor.nombre }}</a>{% endif %}</div>
   <h1>Revisar y enviar</h1><p>{{ tipos.get(correo.tipo) }} · borrador creado el {{ correo.creado|fecha_hora }}</p>
 </div></div>
 
 {% if correo.estado == 'error' %}<div class="alerta alerta-error">El último intento falló: {{ correo.error }}</div>{% endif %}
 {% if modo_prueba %}<div class="alerta alerta-info">Modo de prueba activo: al pulsar «Enviar» el correo se guarda como archivo y no le llega al cliente. Configura el SMTP en el archivo <code>.env</code> para enviar de verdad.</div>{% endif %}
 
-<form method="post" class="rejilla">
+<form method="post" class="rejilla" enctype="multipart/form-data">
   {{ csrf() }}
   <div class="tarjeta" style="margin:0">
     <div class="tarjeta-cuerpo"><div class="form-grid">
@@ -19,10 +19,27 @@
       <div class="c-12"><label>Asunto</label><input type="text" name="asunto" id="asunto" value="{{ correo.asunto }}" required></div>
       <div class="c-12"><label>Mensaje</label><textarea name="cuerpo" id="cuerpo" rows="14">{{ correo.cuerpo }}</textarea>
         <div class="ayuda">La firma se agrega automáticamente (se edita en Configuración).</div></div>
-      {% if correo.adjunto %}
-      <div class="c-12"><label>Adjunto</label>
-        <a class="adjunto" href="{{ url_for('anticipos.ver_pdf' if correo.adjunto_tipo == 'anticipo' else 'cotizaciones.ver_pdf', ident=correo.adjunto_id) }}" target="_blank">{{ icono('pdf') }} {{ correo.adjunto.numero }}.pdf</a></div>
-      {% endif %}
+      <div class="c-12" id="adjuntos"><label>Adjuntos</label>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          {% if correo.adjunto %}
+          <a class="adjunto" href="{{ url_for('anticipos.ver_pdf' if correo.adjunto_tipo == 'anticipo' else 'cotizaciones.ver_pdf', ident=correo.adjunto_id) }}" target="_blank" style="align-self:flex-start">{{ icono('pdf') }} {{ correo.adjunto.numero }}.pdf <span class="small muted">· generado</span></a>
+          {% endif %}
+          {% for a in correo.archivos %}
+          <div class="adjunto" style="align-self:flex-start;gap:10px">
+            {{ icono('pdf') }} <a href="{{ url_for('correos.descargar_archivo', ident=correo.id, archivo_id=a.id) }}">{{ a.nombre }}</a>
+            <span class="small muted">{{ a.tamano|tamano }}</span>
+            <button class="btn-link" type="submit" formaction="{{ url_for('correos.quitar_archivo', ident=correo.id, archivo_id=a.id) }}" formnovalidate title="Quitar" style="color:var(--error);font-size:16px;line-height:1">×</button>
+          </div>
+          {% endfor %}
+          <div>
+            <label class="btn btn-sm" style="margin:0;display:inline-flex;cursor:pointer;color:var(--texto)">📎 Adjuntar archivos
+              <input type="file" name="archivos" id="archivos" multiple hidden
+                accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.xlsx,.xls,.xlsm,.csv,.docx,.doc,.pptx,.txt,.zip,.rar,.7z,.xml,.eml,.msg"></label>
+            <span class="small muted" style="margin-left:8px">PDF, Excel, Word, imágenes o ZIP · hasta 15 MB en total{% if correo.archivos %} · usado {{ correo.tamano_archivos|tamano }}{% endif %}</span>
+          </div>
+        </div>
+        <button type="submit" name="accion" value="adjuntar" id="btn-adjuntar" formnovalidate hidden>Adjuntar</button>
+      </div>
     </div></div>
     <div class="pie-form" style="justify-content:space-between">
       <button class="btn btn-peligro" type="submit" formaction="{{ url_for('correos.eliminar', ident=correo.id) }}" formnovalidate data-confirmar="¿Descartar este borrador?">Descartar</button>
@@ -42,6 +59,10 @@
         <div class="preview-cuerpo" id="pv-cuerpo">{{ correo.cuerpo }}</div>
         <div class="preview-firma">{{ firma }}</div>
       </div>
+      {% if correo.adjunto or correo.archivos %}
+      <div class="small" style="margin-top:10px;color:var(--texto-2)">📎 {{ (1 if correo.adjunto else 0) + correo.archivos|length }} adjunto(s):
+        {% if correo.adjunto %}{{ correo.adjunto.numero }}.pdf{% if correo.archivos %}, {% endif %}{% endif %}{{ correo.archivos|map(attribute='nombre')|join(', ') }}</div>
+      {% endif %}
     </div>
   </div>
 </form>
@@ -50,6 +71,9 @@
 <script>
 [['para','pv-para'],['asunto','pv-asunto'],['cuerpo','pv-cuerpo']].forEach(([a, b]) => {
   document.getElementById(a).addEventListener('input', e => document.getElementById(b).textContent = e.target.value);
+});
+document.getElementById('archivos').addEventListener('change', e => {
+  if (e.target.files.length) document.getElementById('btn-adjuntar').click();  // sube al elegirlos
 });
 document.getElementById('btn-enviar').addEventListener('click', ev => {
   const para = document.getElementById('para').value;

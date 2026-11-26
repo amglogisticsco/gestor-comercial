@@ -58,15 +58,15 @@
   });
   // Aviso si sales de un formulario con cambios sin guardar
   (function () {
-    var sucio = false;
+    var sucio = false, enviando = false;
     document.querySelectorAll('form[method=post]').forEach(function (f) {
       if (f.querySelectorAll('input:not([type=hidden]), textarea, select').length < 3) return; // botones sueltos
       f.addEventListener('input', function () { sucio = true; });
       f.addEventListener('change', function () { sucio = true; });
-      f.addEventListener('submit', function () { sucio = false; });
+      f.addEventListener('submit', function () { enviando = true; });
     });
     window.addEventListener('beforeunload', function (e) {
-      if (sucio) { e.preventDefault(); e.returnValue = ''; }
+      if (sucio && !enviando) { e.preventDefault(); e.returnValue = ''; }
     });
   })();
   // Borrado definitivo: hay que escribir ELIMINAR

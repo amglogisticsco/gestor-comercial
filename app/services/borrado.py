@@ -20,6 +20,11 @@ def eliminar_anticipo(anticipo):
 
 
 def eliminar_cotizacion(cot):
+    if cot.revisa_a_id:  # si se borra una revisión, la anterior vuelve a quedar vigente
+        anterior = db.session.get(Cotizacion, cot.revisa_a_id)
+        if anterior and anterior.reemplazada_por_id == cot.id:
+            anterior.estado, anterior.reemplazada_por_id = "enviada", None
+    Cotizacion.query.filter_by(revisa_a_id=cot.id).update({"revisa_a_id": None})
     for anticipo in list(cot.anticipos):
         eliminar_anticipo(anticipo)
     for correo in _correos_de("cotizacion", cot.id):

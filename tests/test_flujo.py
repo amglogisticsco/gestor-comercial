@@ -396,3 +396,42 @@ def test_servicios_duplicados_eliminar_y_fusionar(cliente_http):
         Tarifa.query.delete(); ItemCotizacion.query.delete(); db.session.commit()
         sembrar_datos()
         assert Servicio.query.filter_by(codigo="SER-002").count() == 0
+
+
+def test_revisiones_de_cotizacion(cliente_http):
+    from app.models import ItemCotizacion
+    c = cliente_http
+    post(c, "/setup", {"empresa": "AMG", "nombre": "David", "email": "d@amg.test", "clave": "clave-segura"})
+    with c.app.app_context():
+        cli = Cliente(razon_social="MODALUX", email="m@x.co"); db.session.add(cli); db.session.flush()
+        cot = Cotizacion(numero="COT-0005", cliente=cli, estado="enviada", moneda="USD", origen="CARTAGENA")
+        cot.items = [ItemCotizacion(descripcion="Flete", precio=1450)]
+        db.session.add(cot); db.session.commit(); cid = cot.id
+    # Un borrador no se revisa
+    r = post(c, f"/cotizaciones/{cid}/revision", {}, desde=f"/cotizaciones/{cid}")
+    assert "revisión COT-0005-R1" in r.get_data(as_text=True)
+    with c.app.app_context():
+        orig = db.session.get(Cotizacion, cid); r1 = Cotizacion.query.filter_by(numero="COT-0005-R1").one()
+        assert orig.estado == "reemplazada" and orig.reemplazada_por_id == r1.id
+        assert r1.revision == 1 and r1.estado == "borrador" and r1.items[0].precio == 1450
+        assert [v.numero for v in r1.versiones] == ["COT-0005", "COT-0005-R1"]
+        r1_id = r1.id
+        from app.services import correo as sc
+        assert "Revisión 1" in sc.borrador_cotizacion(r1).asunto
+        from app.models import numero_cotizacion
+        assert numero_cotizacion() == "COT-0006"  # las revisiones no consumen numeración
+    # La versión reemplazada no permite cambiar estado
+    post(c, f"/cotizaciones/{cid}/estado", {"estado": "aprobada"}, desde=f"/cotizaciones/{cid}")
+    with c.app.app_context():
+        assert db.session.get(Cotizacion, cid).estado == "reemplazada"
+        db.session.get(Cotizacion, r1_id).estado = "enviada"; db.session.commit()
+    # R2 a partir de R1
+    post(c, f"/cotizaciones/{r1_id}/revision", {}, desde=f"/cotizaciones/{r1_id}")
+    with c.app.app_context():
+        r2 = Cotizacion.query.filter_by(numero="COT-0005-R2").one(); r2_id = r2.id
+    assert "Versiones" in c.get(f"/cotizaciones/{r2_id}").get_data(as_text=True)
+    assert c.get(f"/cotizaciones/{r2_id}/pdf").data[:4] == b"%PDF"
+    # Borrar R2 (borrador) reabre R1
+    post(c, f"/cotizaciones/{r2_id}/eliminar", {}, desde=f"/cotizaciones/{r2_id}")
+    with c.app.app_context():
+        assert db.session.get(Cotizacion, r1_id).estado == "enviada"

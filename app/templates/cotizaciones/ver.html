@@ -6,15 +6,26 @@
   <div>
     <div class="migas"><a href="{{ url_for('cotizaciones.lista') }}">Cotizaciones</a></div>
     <h1>{{ c.numero }} &nbsp;{{ badge(c.estado_actual, ESTADOS) }}</h1>
+    {% if c.revision %}<p style="margin:2px 0 0" class="small"><strong>Revisión {{ c.revision }}</strong> de la cotización {{ c.numero_base }}</p>{% endif %}
     <p><a href="{{ url_for('clientes.ver', ident=c.cliente.id) }}">{{ c.cliente.razon_social }}</a> · {{ c.fecha|fecha }} · vence {{ c.vence|fecha }}</p>
   </div>
   <div class="acciones">
     <a class="btn" href="{{ url_for('cotizaciones.ver_pdf', ident=c.id) }}" target="_blank">{{ icono('pdf') }} Ver PDF</a>
-    <a class="btn" href="{{ url_for('cotizaciones.editar', ident=c.id) }}">{{ icono('editar') }} Editar</a>
+    {% if c.estado != 'reemplazada' %}
+    {% if c.puede_revisarse %}
+    <form class="en-linea" method="post" action="{{ url_for('cotizaciones.crear_revision', ident=c.id) }}">{{ csrf() }}
+      <button class="btn" type="submit" data-confirmar="¿Crear la revisión de {{ c.numero }}? Se guardará esta versión y se abrirá una copia para hacer los cambios.">{{ icono('copiar') }} Crear revisión</button></form>
+    {% endif %}
+    <a class="btn" href="{{ url_for('cotizaciones.editar', ident=c.id) }}" {% if c.puede_revisarse %}data-confirmar="Esta cotización ya fue enviada. Si el cliente pidió cambios, es mejor usar «Crear revisión» para conservar la versión enviada. ¿Editarla de todas formas?"{% endif %}>{{ icono('editar') }} Editar</a>
     <form class="en-linea" method="post" action="{{ url_for('cotizaciones.preparar_correo', ident=c.id) }}">{{ csrf() }}
       <button class="btn btn-primario" type="submit">{{ icono('correo') }} Preparar correo</button></form>
+    {% endif %}
   </div>
 </div>
+{% if c.estado == 'reemplazada' and c.reemplazada_por %}
+<div class="alerta alerta-info">Esta es una versión anterior: fue reemplazada por
+  <a href="{{ url_for('cotizaciones.ver', ident=c.reemplazada_por.id) }}"><strong>{{ c.reemplazada_por.numero }}</strong></a>. Se conserva solo como registro.</div>
+{% endif %}
 
 <div class="rejilla-3-1">
   <div>
@@ -45,15 +56,27 @@
     <div class="tarjeta">
       <div class="tarjeta-cab"><h2>Estado</h2></div>
       <div class="tarjeta-cuerpo">
+        {% if c.estado == 'reemplazada' %}<p class="small muted" style="margin:0">Versión anterior, sin cambios de estado.</p>{% else %}
         <form method="post" action="{{ url_for('cotizaciones.cambiar_estado', ident=c.id) }}" style="display:flex;gap:8px">{{ csrf() }}
-          <select name="estado">{% for k, v in estados.items() if k != 'vencida' %}<option value="{{ k }}" {{ 'selected' if k == c.estado }}>{{ v }}</option>{% endfor %}</select>
+          <select name="estado">{% for k, v in estados.items() if k not in ('vencida', 'reemplazada') %}<option value="{{ k }}" {{ 'selected' if k == c.estado }}>{{ v }}</option>{% endfor %}</select>
           <button class="btn" type="submit">Actualizar</button>
         </form>
+        {% endif %}
         {% if c.estado == 'aprobada' %}
         <a class="btn btn-exito" style="margin-top:12px;width:100%;justify-content:center" href="{{ url_for('anticipos.nuevo', cotizacion_id=c.id) }}">{{ icono('anticipo') }} Crear solicitud de fondos</a>
         {% endif %}
       </div>
     </div>
+
+    {% set versiones = c.versiones %}
+    {% if versiones|length > 1 %}
+    <div class="tarjeta"><div class="tarjeta-cab"><h2>Versiones</h2></div>
+      <ul class="lista-simple">{% for v in versiones|reverse %}
+        <li><div>{% if v.id == c.id %}<strong>{{ v.numero }}</strong> <span class="small muted">(esta)</span>{% else %}<a class="principal-celda" href="{{ url_for('cotizaciones.ver', ident=v.id) }}">{{ v.numero }}</a>{% endif %}
+          <div class="small muted">{{ 'Original' if not v.revision else 'Revisión ' ~ v.revision }} · {{ v.fecha|fecha }} · {{ v.total|moneda(v.moneda) }}</div></div>
+          {{ badge(v.estado_actual, ESTADOS) }}</li>
+      {% endfor %}</ul></div>
+    {% endif %}
 
     <div class="tarjeta"><div class="tarjeta-cab"><h2>Datos generales</h2></div><div class="tarjeta-cuerpo"><dl class="datos">
       {% if c.asunto %}<dt>Operación</dt><dd>{{ c.asunto }}</dd>{% endif %}

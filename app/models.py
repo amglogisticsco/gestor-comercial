@@ -15,6 +15,7 @@ ESTADOS_COTIZACION = {
     "aprobada": "Aceptada",
     "rechazada": "Rechazada",
     "vencida": "Vencida",
+    "reemplazada": "Reemplazada",
 }
 ROLES = {"admin": "Administrador", "usuario": "Usuario"}
 ESTADOS_ANTICIPO = {"pendiente": "Pendiente", "enviada": "Enviada", "pagada": "Pagada", "anulada": "Anulada"}
@@ -336,6 +337,9 @@ class Cotizacion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     numero = db.Column(db.String(30), unique=True, nullable=False)
     cliente_id = db.Column(db.Integer, db.ForeignKey("cliente.id"), nullable=False)
+    revision = db.Column(db.Integer, default=0)  # 0 = original; 1 = R1…
+    revisa_a_id = db.Column(db.Integer, nullable=True)  # versión anterior
+    reemplazada_por_id = db.Column(db.Integer, nullable=True)  # versión siguiente
     fecha = db.Column(db.Date, default=date.today)
     validez_dias = db.Column(db.Integer, default=15)
     estado = db.Column(db.String(20), default="borrador")
@@ -397,6 +401,26 @@ class Cotizacion(db.Model):
         if self.estado in ("borrador", "enviada") and self.vence < date.today():
             return "vencida"
         return self.estado
+
+    @property
+    def numero_base(self):
+        """COT-0005-R2 → COT-0005"""
+        return self.numero.split("-R")[0]
+
+    @property
+    def versiones(self):
+        """Original y todas sus revisiones, de la más antigua a la más reciente."""
+        base = self.numero_base
+        todas = Cotizacion.query.filter((Cotizacion.numero == base) | Cotizacion.numero.like(f"{base}-R%")).all()
+        return sorted(todas, key=lambda c: c.revision or 0)
+
+    @property
+    def reemplazada_por(self):
+        return db.session.get(Cotizacion, self.reemplazada_por_id) if self.reemplazada_por_id else None
+
+    @property
+    def puede_revisarse(self):
+        return self.estado not in ("borrador", "reemplazada")
 
     @property
     def asunto(self):

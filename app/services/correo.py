@@ -39,10 +39,16 @@ def firma(empresa):
 def borrador_cotizacion(cot):
     empresa = Empresa.actual()
     cliente = cot.cliente
-    asunto = f"Cotización {cot.numero} – {empresa.nombre}"
+    if cot.revision:
+        asunto = f"Cotización {cot.numero_base} – Revisión {cot.revision} – {empresa.nombre}"
+        intro = (f"Reciba un cordial saludo. Adjuntamos la revisión {cot.revision} de la cotización {cot.numero_base} "
+                 f"({cot.numero}), con los ajustes solicitados, correspondiente a ")
+    else:
+        asunto = f"Cotización {cot.numero} – {empresa.nombre}"
+        intro = f"Reciba un cordial saludo. Adjuntamos la cotización {cot.numero} correspondiente a "
     cuerpo = (
         f"Buen día, {cliente.nombre_saludo}:\n\n"
-        f"Reciba un cordial saludo. Adjuntamos la cotización {cot.numero} correspondiente a "
+        f"{intro}"
         f"{cot.resumen}, por un valor total de {moneda(cot.total, cot.moneda)}.\n\n"
         f"La oferta tiene una vigencia de {cot.validez_dias} días (hasta el {fecha_larga(cot.vence)}). "
         "Quedamos atentos a sus comentarios o a cualquier ajuste que requiera.\n\n"

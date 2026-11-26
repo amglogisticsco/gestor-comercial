@@ -15,7 +15,7 @@ def inicio():
 
     hoy = date.today()
     inicio_mes = hoy.replace(day=1)
-    cotizaciones = Cotizacion.query.order_by(Cotizacion.id.desc()).all()
+    cotizaciones = [c for c in Cotizacion.query.order_by(Cotizacion.id.desc()).all() if c.estado != "reemplazada"]
     del_mes = [c for c in cotizaciones if c.fecha >= inicio_mes]
     en_espera = [c for c in cotizaciones if c.estado_actual == "enviada"]
     aprobadas_mes = [c for c in del_mes if c.estado == "aprobada"]

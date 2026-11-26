@@ -10,6 +10,7 @@
   <div class="tipo">Cotización de servicios logísticos</div>
   {% if c.asunto %}<div class="sub">{{ c.asunto }}</div>{% endif %}
   <div class="numero">N.º {{ c.numero }}</div>
+  {% if c.revision %}<div class="sub" style="margin-top:6px;color:#5E6066">Revisión {{ c.revision }} · reemplaza versiones anteriores</div>{% endif %}
 {% endblock %}
 {% block cuerpo %}
 {% set generales = [("Cliente", c.cliente.razon_social), ("Fecha", c.fecha|fecha_larga),

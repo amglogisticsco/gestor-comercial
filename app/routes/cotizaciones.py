@@ -136,7 +136,7 @@ def ver_pdf(ident):
 def cambiar_estado(ident):
     cot = obtener(Cotizacion, ident)
     estado = request.form.get("estado")
-    if estado in ESTADOS_COTIZACION and estado != "vencida":
+    if estado in ESTADOS_COTIZACION and estado not in ("vencida", "reemplazada") and cot.estado != "reemplazada":
         cot.estado = estado
         db.session.commit()
         flash(f"Estado actualizado a «{ESTADOS_COTIZACION[estado]}».", "ok")
@@ -161,6 +161,33 @@ def duplicar(ident):
     db.session.commit()
     flash(f"Se creó {copia.numero} a partir de {origen.numero}.", "ok")
     return redirect(url_for("cotizaciones.editar", ident=copia.id))
+
+
+@bp.route("/<int:ident>/revision", methods=["POST"])
+def crear_revision(ident):
+    """Nueva versión (COT-0005-R1) para ajustes pedidos por el cliente; la anterior queda guardada."""
+    origen = obtener(Cotizacion, ident)
+    if not origen.puede_revisarse:
+        flash("Solo se crean revisiones de cotizaciones ya enviadas que no hayan sido reemplazadas.", "error")
+        return redirect(url_for("cotizaciones.ver", ident=origen.id))
+    numero_rev = max((v.revision or 0) for v in origen.versiones) + 1
+    nueva = Cotizacion(numero=f"{origen.numero_base}-R{numero_rev}", revision=numero_rev, revisa_a_id=origen.id,
+                       cliente_id=origen.cliente_id, fecha=date.today(), validez_dias=origen.validez_dias,
+                       moneda=origen.moneda, iva_pct=origen.iva_pct, estado="borrador", tarifa_id=origen.tarifa_id)
+    for campo in CAMPOS_TEXTO:
+        setattr(nueva, campo, getattr(origen, campo))
+    nueva.items = [ItemCotizacion(orden=i.orden, descripcion=i.descripcion, cantidad=i.cantidad, unidad=i.unidad,
+                                  precio=i.precio, aplica_iva=i.aplica_iva, servicio_id=i.servicio_id,
+                                  observacion=i.observacion, tarifa_id=i.tarifa_id)
+                   for i in origen.items]
+    db.session.add(nueva)
+    db.session.flush()
+    origen.estado = "reemplazada"
+    origen.reemplazada_por_id = nueva.id
+    db.session.commit()
+    flash(f"Se creó la revisión {nueva.numero}. Haz los cambios que pidió el cliente y guarda. "
+          f"{origen.numero} queda guardada como versión anterior.", "ok")
+    return redirect(url_for("cotizaciones.editar", ident=nueva.id))
 
 
 @bp.route("/<int:ident>/eliminar", methods=["POST"])

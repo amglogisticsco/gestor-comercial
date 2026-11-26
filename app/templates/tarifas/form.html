@@ -13,7 +13,7 @@
   <div class="seccion-form"><div class="form-grid">
     <div class="c-6"><label>Servicio</label>
       <select name="servicio_id" required><option value="">Selecciona…</option>
-        {% for s in servicios %}<option value="{{ s.id }}" {{ 'selected' if s.id == t.servicio_id }}>{{ s.codigo }} · {{ s.nombre }}</option>{% endfor %}
+        {% for s in servicios %}<option value="{{ s.id }}" {{ 'selected' if s.id == t.servicio_id }}>{{ s.nombre }} · {{ s.codigo }}</option>{% endfor %}
       </select></div>
     <div class="c-6"><label>Proveedor</label>
       <select name="proveedor_id" id="proveedor-sel">

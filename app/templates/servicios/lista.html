@@ -54,7 +54,7 @@
         <label>Fusionar con el servicio que se queda</label>
         <select name="destino_id" id="zb-destino" required>
           <option value="">Elige el servicio que se queda…</option>
-          {% for o in servicios %}<option value="{{ o.id }}">{{ o.codigo }} · {{ o.nombre }}</option>{% endfor %}
+          {% for o in servicios %}<option value="{{ o.id }}">{{ o.nombre }} · {{ o.codigo }}</option>{% endfor %}
         </select>
         <p class="ayuda">Sus tarifas y líneas de cotización pasan al servicio elegido y este se borra.</p>
         <button class="btn btn-peligro" type="submit" data-confirmar="¿Fusionar y borrar este servicio? Esta acción no se puede deshacer.">Fusionar y borrar</button>

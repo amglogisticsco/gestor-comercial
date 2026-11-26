@@ -285,7 +285,9 @@ def _crear(cliente, tipo, asunto, cuerpo, adjunto_tipo=None, adjunto_id=None, id
 
 
 def _lista(texto):
-    return [d.strip() for d in (texto or "").replace(";", ",").split(",") if d.strip()]
+    import re
+
+    return [d for d in re.split(r"[,;\s]+", texto or "") if d]
 
 
 def adjunto_pdf(correo):

@@ -1,9 +1,10 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user
 from sqlalchemy import or_
 
 from .. import db
 from ..models import (ESTADOS_TARIFA, MONEDAS, TIPOS_OPERACION, TIPOS_PROVEEDOR, Cliente, Proveedor, Servicio, Tarifa,
-                      asignar_codigos, obtener_proveedor)
+                      asignar_codigos, obtener_proveedor, registrar_cambio_tarifa)
 from . import a_fecha, a_numero, obtener
 
 bp = Blueprint("tarifas", __name__, url_prefix="/tarifas")
@@ -55,10 +56,11 @@ def editar(ident=None):
             tarifa.proveedor = proveedor.nombre if proveedor else ""
             for campo in ("origen", "destino", "observaciones"):
                 setattr(tarifa, campo, request.form.get(campo, "").strip())
-            tarifa.moneda = request.form.get("moneda") if request.form.get("moneda") in MONEDAS else "USD"
-            tarifa.valor = a_numero(request.form.get("valor"))
-            tarifa.vigencia_desde = a_fecha(request.form.get("vigencia_desde"))
-            tarifa.vigencia_hasta = a_fecha(request.form.get("vigencia_hasta"))
+            registrar_cambio_tarifa(
+                tarifa, a_numero(request.form.get("valor")),
+                request.form.get("moneda") if request.form.get("moneda") in MONEDAS else "USD",
+                a_fecha(request.form.get("vigencia_desde")), a_fecha(request.form.get("vigencia_hasta")),
+                current_user.nombre)
             tarifa.activo = request.form.get("activo", "1") == "1"
             if not tarifa.id:
                 db.session.add(tarifa)
@@ -85,3 +87,22 @@ def duplicar(ident):
     db.session.commit()
     flash(f"Se creó {copia.codigo} como copia de {t.codigo}. Actualiza el valor y la vigencia.", "ok")
     return redirect(url_for("tarifas.editar", ident=copia.id))
+
+
+@bp.route("/<int:ident>/actualizar", methods=["POST"])
+def actualizar(ident):
+    """Actualización rápida desde la lista: nuevo valor y vigencia, con historial."""
+    t = obtener(Tarifa, ident)
+    valor = a_numero(request.form.get("valor"), t.valor)
+    moneda = request.form.get("moneda") if request.form.get("moneda") in MONEDAS else t.moneda
+    desde = a_fecha(request.form.get("vigencia_desde")) or t.vigencia_desde
+    hasta = a_fecha(request.form.get("vigencia_hasta")) or t.vigencia_hasta
+    anterior = t.valor
+    registrar_cambio_tarifa(t, valor, moneda, desde, hasta, current_user.nombre)
+    t.activo = True
+    db.session.commit()
+    from ..filtros import moneda as fmt
+
+    cambio = f"{fmt(anterior, moneda)} → {fmt(valor, moneda)}" if round(anterior or 0, 2) != round(valor, 2) else "vigencia actualizada"
+    flash(f"Tarifa {t.codigo} actualizada: {cambio}.", "ok")
+    return redirect(url_for("tarifas.lista", q=request.args.get("q", ""), estado=request.args.get("estado", "")) + f"#t{t.id}")

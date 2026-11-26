@@ -253,6 +253,8 @@ class Tarifa(db.Model):
     servicio = db.relationship("Servicio")
     cliente = db.relationship("Cliente")
     proveedor_ref = db.relationship("Proveedor", back_populates="tarifas")
+    historial = db.relationship("HistorialTarifa", back_populates="tarifa", cascade="all, delete-orphan",
+                                order_by="desc(HistorialTarifa.id)")
 
     @property
     def proveedor_nombre(self):
@@ -303,6 +305,32 @@ class Tarifa(db.Model):
         partes = [self.codigo, self.servicio.nombre if self.servicio else "", self.ruta, self.proveedor_nombre,
                   self.cliente.razon_social if self.cliente else "", self.proceso]
         return " · ".join(p for p in partes if p)
+
+
+class HistorialTarifa(db.Model):
+    """Cada cambio de valor o vigencia de una tarifa."""
+    id = db.Column(db.Integer, primary_key=True)
+    tarifa_id = db.Column(db.Integer, db.ForeignKey("tarifa.id"), nullable=False)
+    fecha = db.Column(db.DateTime, default=datetime.now)
+    usuario = db.Column(db.String(120), default="")
+    valor_anterior = db.Column(db.Float, default=0)
+    valor_nuevo = db.Column(db.Float, default=0)
+    moneda_anterior = db.Column(db.String(3), default="")
+    moneda = db.Column(db.String(3), default="")
+    hasta_anterior = db.Column(db.Date, nullable=True)
+    hasta_nuevo = db.Column(db.Date, nullable=True)
+
+    tarifa = db.relationship("Tarifa", back_populates="historial")
+
+
+def registrar_cambio_tarifa(tarifa, valor, moneda, desde, hasta, usuario=""):
+    """Aplica los nuevos valores y guarda el historial si algo cambió."""
+    if tarifa.id and (round(tarifa.valor or 0, 2) != round(valor or 0, 2) or tarifa.moneda != moneda
+                      or tarifa.vigencia_hasta != hasta):
+        db.session.add(HistorialTarifa(tarifa=tarifa, usuario=usuario, valor_anterior=tarifa.valor or 0,
+                                       valor_nuevo=valor or 0, moneda_anterior=tarifa.moneda, moneda=moneda,
+                                       hasta_anterior=tarifa.vigencia_hasta, hasta_nuevo=hasta))
+    tarifa.valor, tarifa.moneda, tarifa.vigencia_desde, tarifa.vigencia_hasta = valor, moneda, desde, hasta
 
 
 ESTADOS_TARIFA = {"vigente": "Vigente", "vencida": "Vencida", "futura": "Aún no vigente",

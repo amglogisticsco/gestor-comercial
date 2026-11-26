@@ -481,3 +481,27 @@ def test_adjuntar_archivos_a_correos(cliente_http):
     with c.app.app_context():
         assert ArchivoCorreo.query.filter_by(correo_id=mid2).count() == 0
     assert not ruta2.exists()
+
+
+def test_actualizar_tarifa_con_historial(cliente_http):
+    from app.models import HistorialTarifa, ItemCotizacion, Servicio, Tarifa
+    c = cliente_http
+    post(c, "/setup", {"empresa": "AMG", "nombre": "David", "email": "d@amg.test", "clave": "clave-segura"})
+    with c.app.app_context():
+        s = Servicio.query.filter_by(codigo="SER-001").one()
+        t = Tarifa(codigo="TAR-0001", servicio=s, valor=1450, moneda="USD", activo=True)
+        cli = Cliente(razon_social="X"); db.session.add_all([t, cli]); db.session.flush()
+        cot = Cotizacion(numero="COT-0001", cliente=cli)
+        cot.items = [ItemCotizacion(descripcion="Flete", precio=1450, tarifa_id=t.id)]
+        db.session.add(cot); db.session.commit(); tid = t.id
+    r = post(c, f"/tarifas/{tid}/actualizar", {"valor": "1.390", "moneda": "USD", "vigencia_hasta": "2026-12-31"},
+             desde="/tarifas/")
+    assert "1.390" in r.get_data(as_text=True)
+    with c.app.app_context():
+        t = db.session.get(Tarifa, tid)
+        assert t.valor == 1390 and len(t.historial) == 1
+        h = t.historial[0]
+        assert h.valor_anterior == 1450 and h.valor_nuevo == 1390 and h.usuario == "David"
+        assert Cotizacion.query.one().items[0].precio == 1450  # las cotizaciones hechas no cambian
+    assert "Historial de cambios" in c.get(f"/tarifas/{tid}").get_data(as_text=True)
+    assert "Actualizar" in c.get("/tarifas/").get_data(as_text=True)

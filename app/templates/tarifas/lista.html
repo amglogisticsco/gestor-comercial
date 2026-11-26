@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icono with context %}
+{% from "_macros.html" import icono, csrf with context %}
 {% set clases = {'vigente': 'b-aprobada', 'vencida': 'b-error', 'futura': 'b-enviada', 'sin_valor': 'b-pendiente', 'inactiva': 'b-borrador'} %}
 {% block titulo %}Tarifas{% endblock %}
 {% block contenido %}
@@ -19,21 +19,43 @@
   </div>
   {% if tarifas %}
   <div class="tabla-envoltura"><table class="tabla">
-    <thead><tr><th>Código</th><th>Servicio</th><th>Aplica a</th><th>Ruta</th><th>Proveedor</th><th class="der">Tarifa</th><th>Vigencia</th><th>Estado</th></tr></thead>
+    <thead><tr><th>Tarifa / servicio</th><th>Aplica a</th><th>Ruta</th><th>Proveedor</th><th class="der">Tarifa</th><th>Vigencia</th><th>Estado</th><th></th></tr></thead>
     <tbody>{% for t in tarifas %}
-      <tr>
-        <td><a class="principal-celda" href="{{ url_for('tarifas.editar', ident=t.id) }}">{{ t.codigo }}</a></td>
-        <td>{{ t.servicio.nombre }}<div class="small muted">{{ t.servicio.codigo }}</div></td>
+      <tr id="t{{ t.id }}">
+        <td><a class="principal-celda" href="{{ url_for('tarifas.editar', ident=t.id) }}">{{ t.codigo }}</a>
+          <div>{{ t.servicio.nombre }}</div><div class="small muted">{{ t.servicio.codigo }}</div></td>
         <td class="small">{% if t.cliente %}<strong>{{ t.cliente.razon_social }}</strong>{% else %}<span class="muted">Todos</span>{% endif %}{% if t.proceso %}<div class="muted">{{ t.proceso }}</div>{% endif %}</td>
         <td class="small">{{ t.ruta or '—' }}</td>
         <td class="small">{% if t.proveedor_ref %}<a href="{{ url_for('directorio.ver', ident=t.proveedor_ref.id) }}">{{ t.proveedor_ref.nombre }}</a><div class="muted">{{ t.proveedor_ref.tipo }}</div>{% else %}{{ t.proveedor or '—' }}{% endif %}</td>
         <td class="der num">{{ t.valor|moneda(t.moneda) if t.valor else '—' }}</td>
-        <td class="small">{{ t.vigencia_desde|fecha if t.vigencia_desde else '' }}{% if t.vigencia_desde or t.vigencia_hasta %} – {% endif %}{{ t.vigencia_hasta|fecha if t.vigencia_hasta else '' }}</td>
+        <td class="small">{% if t.vigencia_hasta %}hasta {{ t.vigencia_hasta|fecha }}{% elif t.vigencia_desde %}desde {{ t.vigencia_desde|fecha }}{% else %}—{% endif %}</td>
         <td><span class="badge {{ clases[t.estado] }}">{{ estados[t.estado] }}</span></td>
+        <td class="der"><button class="btn btn-sm" type="button" onclick="abrirActualizar({{ t.id }})">Actualizar</button></td>
       </tr>
+      <tr class="fila-actualizar" id="act-{{ t.id }}" hidden><td colspan="8" style="background:var(--acento-suave, #FDF2F2)">
+        <form method="post" action="{{ url_for('tarifas.actualizar', ident=t.id, q=q, estado=estado) }}" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+          {{ csrf() }}
+          <div><label>Nuevo valor</label><input type="text" name="valor" value="{{ t.valor|crudo }}" inputmode="decimal" style="width:140px" required></div>
+          <div><label>Moneda</label><select name="moneda" style="width:90px">{% for m in ['USD', 'COP', 'EUR'] %}<option {{ 'selected' if m == t.moneda }}>{{ m }}</option>{% endfor %}</select></div>
+          <div><label>Vigente desde</label><input type="date" name="vigencia_desde" value="{{ hoy().isoformat() }}" style="width:160px"></div>
+          <div><label>Vigente hasta</label><input type="date" name="vigencia_hasta" value="{{ t.vigencia_hasta.isoformat() if t.vigencia_hasta }}" style="width:160px"></div>
+          <button class="btn btn-primario" type="submit">Guardar cambio</button>
+          <button class="btn" type="button" onclick="abrirActualizar({{ t.id }})">Cancelar</button>
+          <span class="small muted" style="flex-basis:100%">El valor anterior queda en el historial de la tarifa. Las cotizaciones ya hechas no cambian.</span>
+        </form>
+      </td></tr>
     {% endfor %}</tbody></table></div>
   {% else %}
   <div class="vacio">No hay tarifas{% if q or estado %} con ese filtro{% endif %}. <a href="{{ url_for('tarifas.editar') }}">Crea una</a>{% if current_user.es_admin %} o <a href="{{ url_for('configuracion.importar') }}">impórtalas desde tu Excel</a>{% endif %}.</div>
   {% endif %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+function abrirActualizar(id) {
+  const fila = document.getElementById('act-' + id);
+  fila.hidden = !fila.hidden;
+  if (!fila.hidden) fila.querySelector('[name=valor]').select();
+}
+</script>
 {% endblock %}

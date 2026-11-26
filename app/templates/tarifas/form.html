@@ -6,7 +6,7 @@
   <div><div class="migas"><a href="{{ url_for('tarifas.lista') }}">Tarifas</a></div>
     <h1>{{ 'Tarifa ' ~ t.codigo if t.id else 'Nueva tarifa' }}</h1></div>
   {% if t.id %}<form class="en-linea" method="post" action="{{ url_for('tarifas.duplicar', ident=t.id) }}">{{ csrf() }}
-    <button class="btn" type="submit">{{ icono('copiar') }} Duplicar (nueva vigencia)</button></form>{% endif %}
+    <button class="btn" type="submit">{{ icono('copiar') }} Duplicar como otra tarifa</button></form>{% endif %}
 </div>
 <form method="post" class="tarjeta" style="max-width:900px">
   {{ csrf() }}
@@ -45,6 +45,21 @@
   </div></div>
   <div class="pie-form"><a class="btn" href="{{ url_for('tarifas.lista') }}">Cancelar</a><button class="btn btn-primario" type="submit">Guardar tarifa</button></div>
 </form>
+{% if t.id %}
+<div class="tarjeta" style="max-width:900px">
+  <div class="tarjeta-cab"><h2>Historial de cambios</h2><span class="small muted">Las cotizaciones ya hechas conservan su precio</span></div>
+  {% if t.historial %}
+  <div class="tabla-envoltura"><table class="tabla">
+    <thead><tr><th>Fecha</th><th>Valor</th><th>Vigente hasta</th><th>Cambiado por</th></tr></thead>
+    <tbody>{% for h in t.historial %}
+      <tr><td class="small">{{ h.fecha|fecha_hora }}</td>
+        <td class="num">{{ h.valor_anterior|moneda(h.moneda_anterior or h.moneda) }} → <strong>{{ h.valor_nuevo|moneda(h.moneda) }}</strong></td>
+        <td class="small">{{ h.hasta_anterior|fecha if h.hasta_anterior else '—' }} → {{ h.hasta_nuevo|fecha if h.hasta_nuevo else '—' }}</td>
+        <td class="small">{{ h.usuario or '—' }}</td></tr>
+    {% endfor %}</tbody></table></div>
+  {% else %}<div class="vacio">Sin cambios todavía. Cuando actualices el valor o la vigencia, quedará registrado aquí.</div>{% endif %}
+</div>
+{% endif %}
 {% endblock %}
 {% block scripts %}
 <script>

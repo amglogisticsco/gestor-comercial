@@ -248,3 +248,6 @@ details.fusionar > summary { list-style: none; cursor: pointer; }
 details.fusionar > summary::-webkit-details-marker { display: none; }
 .btn:disabled, .btn[disabled] { opacity: .45; cursor: not-allowed; pointer-events: none; }
 .b-reemplazada { background: var(--gris-suave); color: var(--texto-3); text-decoration: line-through; }
+/* El contenido nunca empuja la página: las tablas anchas se desplazan dentro de su tarjeta */
+.principal { min-width: 0; }
+.tabla-envoltura { max-width: 100%; }

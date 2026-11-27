@@ -67,7 +67,7 @@
       f.addEventListener('submit', function () { enviando = true; });
     });
     window.addEventListener('beforeunload', function (e) {
-      if (sucio && !enviando) { e.preventDefault(); e.returnValue = ''; }
+      if (sucio && !enviando && !window.sinAviso) { e.preventDefault(); e.returnValue = ''; }
     });
   })();
   // Borrado definitivo: hay que escribir ELIMINAR

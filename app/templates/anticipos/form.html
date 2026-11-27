@@ -39,7 +39,7 @@
       <div class="c-3"><label>Tipo de cambio (TRM)</label><input type="text" name="trm" id="trm" value="{{ a.trm|crudo }}" inputmode="decimal" placeholder="3.950,50"></div>
     </div></div>
 
-    <div class="seccion-form"><h3>Liquidación de tributos <span class="opc" style="text-transform:none;letter-spacing:0;font-weight:400">· opcional, valores en USD</span></h3>
+    <div class="seccion-form" id="bloque-tributos"><h3>Liquidación de tributos <span class="opc" style="text-transform:none;letter-spacing:0;font-weight:400">· opcional, valores en USD</span></h3>
       <div class="form-grid">
         <div class="c-2"><label>FOB</label><input type="text" name="fob" class="trib" value="{{ a.fob|crudo }}" inputmode="decimal"></div>
         <div class="c-2"><label>Flete</label><input type="text" name="flete" class="trib" value="{{ a.flete|crudo }}" inputmode="decimal"></div>
@@ -119,7 +119,7 @@ function recalcular() {
   const base = Math.round(cif * aNumero($('trm').value));
   const arancel = Math.round(base * aNumero($('arancel_pct').value) / 100);
   const iva = Math.round((base + arancel) * aNumero($('iva_tributo_pct').value) / 100);
-  const trib = arancel + iva;
+  const trib = conTributos() ? arancel + iva : 0;
   let gastos = 0; cuerpo.querySelectorAll('[name=item_valor]').forEach(i => gastos += aNumero(i.value));
   document.getElementById('r-cif').textContent = usd(cif);
   document.getElementById('r-base').textContent = cop(base);
@@ -155,6 +155,17 @@ document.getElementById('agregar-servicio').addEventListener('change', e => {
   agregarFila({grupo: s.grupo, descripcion: s.nombre, valor: s.precio}); e.target.value = '';
 });
 document.querySelectorAll('.trib, #trm').forEach(el => el.addEventListener('input', recalcular));
+// En exportación (y procesos nacionales) no se liquidan tributos aduaneros
+const SIN_TRIBUTOS = ['Exportación', 'Nacional', 'Etiquetado'];
+const conTributos = () => !SIN_TRIBUTOS.includes($('tipo_operacion').value);
+function mostrarTributos() {
+  const si = conTributos(), bloque = document.getElementById('bloque-tributos');
+  bloque.hidden = !si;
+  document.getElementById('t-trib').parentElement.style.display = si ? '' : 'none';
+  if (!si) bloque.querySelectorAll('input.trib').forEach(i => { if (!/pct/.test(i.name)) i.value = '0'; });
+  recalcular();
+}
+$('tipo_operacion').addEventListener('change', mostrarTributos);
 function convertir() {
   const trm = aNumero($('trm').value);
   cuerpo.querySelectorAll('[name=item_valor][data-origen]').forEach(v => {
@@ -166,7 +177,21 @@ $('trm').addEventListener('input', convertir);
 const sel = document.getElementById('cotizacion');
 const atenuar = () => document.getElementById('bloque-cliente').style.opacity = sel.value ? .5 : 1;
 sel.addEventListener('change', atenuar); atenuar();
+{% if not a.id %}
+// Al elegir la cotización o el DO, se cargan sus conceptos y datos
+function recargarCon(param, valor) {
+  if (!valor) return;
+  const hay = [...cuerpo.querySelectorAll('[name=item_valor]')].some(i => aNumero(i.value));
+  if (hay && !confirm('Se cargarán los conceptos de la selección y se reemplazarán los actuales. ¿Continuar?')) return;
+  window.sinAviso = true;
+  const u = new URL(location.href); u.searchParams.delete('cotizacion_id'); u.searchParams.delete('do_id');
+  u.searchParams.set(param, valor); location.href = u.toString();
+}
+sel.addEventListener('change', () => recargarCon('cotizacion_id', sel.value));
+document.getElementById('do-sel').addEventListener('change', e => recargarCon('do_id', e.target.value));
+{% endif %}
 EXISTENTES.length ? EXISTENTES.forEach(agregarFila) : recalcular();
 if (aNumero($('trm').value)) convertir();
+mostrarTributos();
 </script>
 {% endblock %}

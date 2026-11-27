@@ -23,14 +23,14 @@
         <thead><tr><th>Concepto</th><th class="der">Valor</th></tr></thead>
         <tbody>
         {% if a.incluye_tributos %}
-          <tr><td class="principal-celda">Tributos aduaneros<div class="small muted">Arancel {{ a.arancel|moneda('COP') }} · IVA {{ a.iva_tributo|moneda('COP') }} · CIF {{ a.cif|moneda('USD') }} × TRM {{ a.trm|numero }}</div></td><td class="der num">{{ a.tributos|moneda('COP') }}</td></tr>
+          <tr><td class="principal-celda">Tributos aduaneros<div class="small muted">Arancel {{ a.arancel|moneda(a.moneda) }} · IVA {{ a.iva_tributo|moneda(a.moneda) }} · CIF {{ a.cif|moneda('USD') }}{% if a.en_pesos %} × TRM {{ a.trm|numero }}{% endif %}</div></td><td class="der num">{{ a.tributos|moneda(a.moneda) }}</td></tr>
         {% endif %}
         {% for grupo, items, subtotal in a.grupos %}
           <tr><td colspan="2" style="background:#FAFBFC" class="small"><strong>{{ grupo }}</strong></td></tr>
-          {% for i in items %}<tr><td>{{ i.descripcion }}</td><td class="der num">{{ i.valor|moneda('COP') }}</td></tr>{% endfor %}
+          {% for i in items %}<tr><td>{{ i.descripcion }}</td><td class="der num">{{ i.valor|moneda(a.moneda) }}</td></tr>{% endfor %}
         {% endfor %}
         </tbody></table></div>
-      <div class="totales num"><div class="total"><span>Total anticipo</span><span>{{ a.total|moneda('COP') }}</span></div></div>
+      <div class="totales num"><div class="total"><span>Total anticipo</span><span>{{ a.total|moneda(a.moneda) }}</span></div></div>
     </div>
   </div>
   <div>

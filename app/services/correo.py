@@ -128,7 +128,7 @@ def _textos_anticipo(ant, idioma):
         banco = f"\n\nPayment can be made to:\n{empresa.datos_bancarios}" if empresa.datos_bancarios else ""
         asunto = f"Funds request {ant.numero}{do} – {empresa.nombre}"
         cuerpo = (f"{_saludo(nombre, 'en')}\n\nIn order to proceed with the operation{referencia}{do}, please find "
-                  f"attached funds request {ant.numero} for {_moneda_en(ant.total, 'COP')}{limite}.{banco}{pie}\n\n"
+                  f"attached funds request {ant.numero} for {_moneda_en(ant.total, ant.moneda or 'COP')}{limite}.{banco}{pie}\n\n"
                   "Kindly send us the proof of payment by replying to this email.\n\nBest regards,")
         return asunto, cuerpo
     referencia = f" (cotización {ant.cotizacion.numero})" if ant.cotizacion else ""
@@ -138,7 +138,7 @@ def _textos_anticipo(ant, idioma):
     cuerpo = (
         f"{_saludo(nombre, 'es')}\n\n"
         f"Reciba un cordial saludo. Para dar continuidad a la operación{referencia}{do}, adjuntamos la "
-        f"solicitud de fondos {ant.numero} por valor de {moneda(ant.total, 'COP')}{limite}.{banco}{pie}\n\n"
+        f"solicitud de fondos {ant.numero} por valor de {moneda(ant.total, ant.moneda or 'COP')}{limite}.{banco}{pie}\n\n"
         "Le agradecemos enviarnos el soporte de pago respondiendo a este correo.\n\n"
         "Cordial saludo,"
     )

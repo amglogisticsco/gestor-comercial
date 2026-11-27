@@ -582,28 +582,36 @@ class Anticipo(db.Model):
         return round((self.fob or 0) + (self.flete or 0) + (self.seguro or 0) + (self.otros_cif or 0), 2)
 
     @property
+    def en_pesos(self):
+        return (self.moneda or "COP") == "COP"
+
+    def _redondear(self, valor):
+        return round(valor) if self.en_pesos else round(valor, 2)
+
+    @property
     def base_gravable(self):
-        return round(self.cif * (self.trm or 0))
+        """En pesos: CIF × TRM. En dólares: el mismo CIF."""
+        return self._redondear(self.cif * (self.trm or 0)) if self.en_pesos else self.cif
 
     @property
     def arancel(self):
-        return round(self.base_gravable * (self.arancel_pct or 0) / 100)
+        return self._redondear(self.base_gravable * (self.arancel_pct or 0) / 100)
 
     @property
     def base_iva(self):
-        return self.base_gravable + self.arancel
+        return self._redondear(self.base_gravable + self.arancel)
 
     @property
     def iva_tributo(self):
-        return round(self.base_iva * (self.iva_tributo_pct or 0) / 100)
+        return self._redondear(self.base_iva * (self.iva_tributo_pct or 0) / 100)
 
     @property
     def tributos(self):
-        return self.arancel + self.iva_tributo
+        return self._redondear(self.arancel + self.iva_tributo)
 
     @property
     def incluye_tributos(self):
-        return self.cif > 0 and (self.trm or 0) > 0
+        return self.cif > 0 and (not self.en_pesos or (self.trm or 0) > 0)
 
     @property
     def total_conceptos(self):

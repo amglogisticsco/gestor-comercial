@@ -24,11 +24,11 @@
 {% if a.incluye_tributos %}
 <div class="barra">Liquidación de tributos aduaneros</div>
 <table class="ficha num">
-  <tr><td class="k">FOB</td><td class="v der">{{ a.fob|moneda('USD') }}</td><td class="k">Base gravable</td><td class="v der">{{ a.base_gravable|moneda('COP') }}</td></tr>
-  <tr><td class="k">Flete</td><td class="v der">{{ a.flete|moneda('USD') }}</td><td class="k">Arancel {{ a.arancel_pct|numero }}%</td><td class="v der">{{ a.arancel|moneda('COP') }}</td></tr>
-  <tr><td class="k">Seguro</td><td class="v der">{{ a.seguro|moneda('USD') }}</td><td class="k">Base IVA</td><td class="v der">{{ a.base_iva|moneda('COP') }}</td></tr>
-  <tr><td class="k">Otros gastos</td><td class="v der">{{ a.otros_cif|moneda('USD') }}</td><td class="k">IVA {{ a.iva_tributo_pct|numero }}%</td><td class="v der">{{ a.iva_tributo|moneda('COP') }}</td></tr>
-  <tr><td class="k"><strong>CIF</strong></td><td class="v der"><strong>{{ a.cif|moneda('USD') }}</strong></td><td class="k"><strong>Total tributos</strong></td><td class="v der"><strong>{{ a.tributos|moneda('COP') }}</strong></td></tr>
+  <tr><td class="k">FOB</td><td class="v der">{{ a.fob|moneda('USD') }}</td><td class="k">Base gravable</td><td class="v der">{{ a.base_gravable|moneda(a.moneda) }}</td></tr>
+  <tr><td class="k">Flete</td><td class="v der">{{ a.flete|moneda('USD') }}</td><td class="k">Arancel {{ a.arancel_pct|numero }}%</td><td class="v der">{{ a.arancel|moneda(a.moneda) }}</td></tr>
+  <tr><td class="k">Seguro</td><td class="v der">{{ a.seguro|moneda('USD') }}</td><td class="k">Base IVA</td><td class="v der">{{ a.base_iva|moneda(a.moneda) }}</td></tr>
+  <tr><td class="k">Otros gastos</td><td class="v der">{{ a.otros_cif|moneda('USD') }}</td><td class="k">IVA {{ a.iva_tributo_pct|numero }}%</td><td class="v der">{{ a.iva_tributo|moneda(a.moneda) }}</td></tr>
+  <tr><td class="k"><strong>CIF</strong></td><td class="v der"><strong>{{ a.cif|moneda('USD') }}</strong></td><td class="k"><strong>Total tributos</strong></td><td class="v der"><strong>{{ a.tributos|moneda(a.moneda) }}</strong></td></tr>
 </table>
 {% endif %}
 
@@ -36,16 +36,16 @@
 <table class="items" style="margin-top:12px">
   <thead><tr><th>{{ grupo }}</th><th class="der" style="width:22%">Valor</th></tr></thead>
   <tbody>
-    {% for i in items %}<tr><td>{{ i.descripcion }}</td><td class="der num">{{ i.valor|moneda('COP') }}</td></tr>{% endfor %}
-    <tr><td class="der" style="color:#5E6066;font-weight:600">Subtotal {{ grupo|lower }}</td><td class="der num"><strong>{{ subtotal|moneda('COP') }}</strong></td></tr>
+    {% for i in items %}<tr><td>{{ i.descripcion }}</td><td class="der num">{{ i.valor|moneda(a.moneda) }}</td></tr>{% endfor %}
+    <tr><td class="der" style="color:#5E6066;font-weight:600">Subtotal {{ grupo|lower }}</td><td class="der num"><strong>{{ subtotal|moneda(a.moneda) }}</strong></td></tr>
   </tbody>
 </table>
 {% endfor %}
 
 <div class="caja-total">
   <div><div class="etq">Total anticipo</div>
-    <div style="font-size:8pt;opacity:.85">{% if a.incluye_tributos %}Tributos {{ a.tributos|moneda('COP') }} + gastos {{ a.total_conceptos|moneda('COP') }}{% endif %}</div></div>
-  <div class="val num">{{ a.total|moneda('COP') }}</div>
+    <div style="font-size:8pt;opacity:.85">{% if a.incluye_tributos %}Tributos {{ a.tributos|moneda(a.moneda) }} + gastos {{ a.total_conceptos|moneda(a.moneda) }}{% endif %}</div></div>
+  <div class="val num">{{ a.total|moneda(a.moneda) }}</div>
 </div>
 
 {% if a.notas %}<div class="bloque"><div class="barra">Observaciones</div><p>{{ a.notas|parrafos }}</p></div>{% endif %}

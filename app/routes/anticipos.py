@@ -56,7 +56,7 @@ def _guardar(a):
         return False
     a.fecha = a_fecha(request.form.get("fecha")) or date.today()
     a.fecha_limite = a_fecha(request.form.get("fecha_limite"))
-    a.moneda = "COP"
+    a.moneda = request.form.get("moneda") if request.form.get("moneda") in ("COP", "USD") else "COP"
     for campo in CAMPOS_TEXTO:
         setattr(a, campo, request.form.get(campo, "").strip())
     for campo in CAMPOS_NUMERO:
@@ -80,6 +80,7 @@ def _guardar(a):
 def _desde_cotizacion(a, cot):
     """Prellena la solicitud con los datos y conceptos de una cotización."""
     a.cotizacion_id, a.cliente_id = cot.id, cot.cliente_id
+    a.moneda = cot.moneda if cot.moneda in ("COP", "USD") else "COP"  # misma moneda de la cotización
     a.tipo_operacion = cot.tipo_operacion or "Importación"
     a.modalidad, a.origen, a.destino = cot.modalidad, cot.origen, cot.destino
     a.tipo_mercancia = cot.mercancia
@@ -89,8 +90,8 @@ def _desde_cotizacion(a, cot):
     for n, i in enumerate(cot.items):
         valor = i.total + i.impuesto(cot.iva_pct)
         item = ItemAnticipo(orden=n, grupo=grupos.get(i.servicio_id, GRUPOS_ANTICIPO[-1]), descripcion=i.descripcion,
-                            valor=valor if cot.moneda == "COP" else 0)
-        item.valor_origen = valor if cot.moneda != "COP" else 0  # se convierte a pesos con la TRM en pantalla
+                            valor=valor)
+        item.valor_origen = valor if cot.moneda != "COP" else 0  # si se pasa a pesos, se convierte con la TRM
         a.items.append(item)
 
 
@@ -104,7 +105,7 @@ def nuevo():
     aviso_usd = False
     if cot and request.method == "GET":
         _desde_cotizacion(a, cot)
-        aviso_usd = cot.moneda != "COP"
+        aviso_usd = cot.moneda != "COP"  # habilita la conversión a pesos si se cambia la moneda
     if do and request.method == "GET":
         a.do_id, a.do_numero, a.cliente_id = do.id, do.numero, do.cliente_id
         a.tipo_operacion = do.tipo_operacion or a.tipo_operacion

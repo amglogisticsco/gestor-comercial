@@ -569,3 +569,7 @@ def test_do_sigue_consecutivo_entre_anios(cliente_http):
         db.session.add(Operacion(numero=f"DO-{date.today().year - 1}-0045", cliente_id=cli.id))
         db.session.commit()
         assert numero_do() == f"DO-{date.today().year}-0046"
+        from app.models import numero_sf
+        db.session.add(Anticipo(numero=f"SF-{date.today().year - 1}-0012", cliente_id=cli.id))
+        db.session.commit()
+        assert numero_sf() == f"SF-{date.today().year}-0013"

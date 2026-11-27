@@ -686,12 +686,20 @@ class Operacion(db.Model):
         return f"{self.origen} → {self.destino}" if self.origen and self.destino else (self.origen or self.destino or "")
 
 
+def numero_continuo(modelo, prefijo, minimo=1):
+    """PREFIJO-AAAA-NNNN: el año cambia, pero el consecutivo sigue (DO-2026-0045 → DO-2027-0046)."""
+    numeros = [int(m.group(1)) for (valor,) in db.session.query(modelo.numero)
+               if valor and (m := re.match(rf"^{prefijo}-\d{{4}}-(\d+)$", valor))]
+    consecutivo = max([minimo - 1, *numeros]) + 1
+    return f"{prefijo}-{date.today().year}-{consecutivo:04d}"
+
+
 def numero_do():
-    """DO-AAAA-NNNN: el año cambia, pero el consecutivo sigue (DO-2026-0045 → DO-2027-0046)."""
-    numeros = [int(m.group(1)) for (valor,) in db.session.query(Operacion.numero)
-               if valor and (m := re.match(r"^DO-\d{4}-(\d+)$", valor))]
-    consecutivo = max([(Empresa.actual().do_siguiente or 1) - 1, *numeros]) + 1
-    return f"DO-{date.today().year}-{consecutivo:04d}"
+    return numero_continuo(Operacion, "DO", Empresa.actual().do_siguiente or 1)
+
+
+def numero_sf():
+    return numero_continuo(Anticipo, "SF")
 
 
 class Correo(db.Model):

@@ -5,7 +5,7 @@ from flask_login import current_user
 
 from .. import db
 from ..models import (ESTADOS_ANTICIPO, GRUPOS_ANTICIPO, MODALIDADES, TIPOS_OPERACION, Anticipo, Cliente,
-                      Cotizacion, ItemAnticipo, Operacion, Servicio, siguiente_numero)
+                      Cotizacion, ItemAnticipo, Operacion, Servicio, numero_sf)
 from ..services import correo as servicio_correo
 from ..services import pdf
 from . import a_fecha, a_numero, obtener
@@ -117,7 +117,7 @@ def nuevo():
         a.do_id, a.do_numero = cot.operaciones[0].id, cot.operaciones[0].numero
     if request.method == "POST":
         if _guardar(a):
-            a.numero = siguiente_numero(Anticipo, "SF")
+            a.numero = numero_sf()
             db.session.add(a)
             db.session.commit()
             flash(f"Solicitud de fondos {a.numero} creada.", "ok")

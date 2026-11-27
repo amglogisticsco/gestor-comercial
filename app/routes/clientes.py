@@ -83,10 +83,10 @@ def eliminar(ident):
         nombre = cliente.razon_social
         borrado.eliminar_cliente(cliente)
         db.session.commit()
-        flash(f"«{nombre}» eliminado definitivamente junto con {r['cotizaciones']} cotizaciones, "
+        flash(f"«{nombre}» eliminado definitivamente junto con {r['DO']} DO, {r['cotizaciones']} cotizaciones, "
               f"{r['anticipos']} solicitudes de fondos, {r['correos']} correos y {r['tarifas']} tarifas especiales.", "ok")
         return redirect(url_for("directorio.inicio"))
-    if cliente.cotizaciones or cliente.anticipos or cliente.correos or Tarifa.query.filter_by(cliente_id=cliente.id).count():
+    if cliente.operaciones or cliente.cotizaciones or cliente.anticipos or cliente.correos or Tarifa.query.filter_by(cliente_id=cliente.id).count():
         cliente.activo = False
         db.session.commit()
         flash("El cliente tiene historial, así que se marcó como inactivo en lugar de eliminarse.", "ok")

@@ -13,11 +13,11 @@
 <div class="tarjeta">
   {% if anticipos %}
   <div class="tabla-envoltura"><table class="tabla">
-    <thead><tr><th>Número</th><th>Cliente</th><th>D.O. / Cotización</th><th>Fecha límite</th><th>Estado</th><th class="der">Monto</th></tr></thead>
+    <thead><tr><th>Número</th><th>Cliente</th><th>DO / Cotización</th><th>Fecha límite</th><th>Estado</th><th class="der">Monto</th></tr></thead>
     <tbody>{% for a in anticipos %}
       <tr><td><a class="principal-celda" href="{{ url_for('anticipos.ver', ident=a.id) }}">{{ a.numero }}</a></td>
         <td>{{ a.cliente.razon_social }}</td>
-        <td>{{ a.do_numero or '' }}{% if a.cotizacion %}<div class="small"><a href="{{ url_for('cotizaciones.ver', ident=a.cotizacion.id) }}">{{ a.cotizacion.numero }}</a></div>{% elif not a.do_numero %}—{% endif %}</td>
+        <td>{% if a.do %}<a href="{{ url_for('operaciones.ver', ident=a.do.id) }}">{{ a.do.numero }}</a>{% else %}{{ a.do_numero or '' }}{% endif %}{% if a.cotizacion %}<div class="small"><a href="{{ url_for('cotizaciones.ver', ident=a.cotizacion.id) }}">{{ a.cotizacion.numero }}</a></div>{% elif not a.do_numero %}—{% endif %}</td>
         <td>{% if a.vencido %}<span class="badge b-error">Vencido {{ a.fecha_limite|fecha }}</span>{% else %}{{ a.fecha_limite|fecha }}{% endif %}</td>
         <td>{{ badge(a.estado, ESTADOS) }}</td><td class="der num">{{ a.monto|moneda(a.moneda) }}</td></tr>
     {% endfor %}</tbody></table></div>

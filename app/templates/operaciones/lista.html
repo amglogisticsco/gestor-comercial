@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, badge with context %}
+{% block titulo %}DO{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+  <div><h1>DO</h1><p>Consecutivo de operaciones. Cada DO identifica la carpeta del proceso.</p></div>
+  <a class="btn btn-primario" href="{{ url_for('operaciones.nuevo') }}">{{ icono('mas') }} Abrir DO</a>
+</div>
+<div class="pestanas">
+  <a href="{{ url_for('operaciones.lista', q=q, tipo=tipo) }}" class="{{ 'activo' if not estado }}">Todos</a>
+  {% for k, v in estados.items() if conteo[k] %}<a href="{{ url_for('operaciones.lista', estado=k, q=q, tipo=tipo) }}" class="{{ 'activo' if estado == k }}">{{ v }} <span class="small muted">{{ conteo[k] }}</span></a>{% endfor %}
+</div>
+<div class="tarjeta">
+  <div class="tarjeta-cab">
+    <form class="buscador" method="get"><input type="hidden" name="estado" value="{{ estado }}">
+      <input type="search" name="q" value="{{ q }}" placeholder="Buscar por DO, cliente, BL / guía, contenedor, ruta o mercancía">
+      {% if tipos|length > 1 %}<select name="tipo" style="width:auto"><option value="">Todos los tipos</option>{% for t in tipos %}<option {{ 'selected' if t == tipo }}>{{ t }}</option>{% endfor %}</select>{% endif %}
+      <button class="btn" type="submit">Buscar</button></form>
+  </div>
+  {% if operaciones %}
+  <div class="tabla-envoltura"><table class="tabla">
+    <thead><tr><th>DO</th><th>Cliente</th><th>Operación</th><th>Ruta</th><th>BL / guía</th><th>Apertura</th><th>Estado</th></tr></thead>
+    <tbody>{% for o in operaciones %}
+      <tr><td><a class="principal-celda" href="{{ url_for('operaciones.ver', ident=o.id) }}">{{ o.numero }}</a>
+          {% if o.cotizacion %}<div class="small muted">{{ o.cotizacion.numero }}</div>{% endif %}</td>
+        <td>{{ o.cliente.razon_social }}{% if o.referencia_cliente %}<div class="small muted">Ref. {{ o.referencia_cliente }}</div>{% endif %}</td>
+        <td class="small">{{ o.tipo_operacion }}{% if o.modalidad %}<div class="muted">{{ o.modalidad }}</div>{% endif %}</td>
+        <td class="small">{{ o.ruta or '—' }}</td>
+        <td class="small">{{ o.doc_transporte or '—' }}</td>
+        <td class="small">{{ o.fecha_apertura|fecha }}</td>
+        <td>{{ badge(o.estado, ESTADOS) }}</td></tr>
+    {% endfor %}</tbody></table></div>
+  {% else %}
+  <div class="vacio">{% if q or estado or tipo %}No hay DO con ese filtro.{% else %}Todavía no hay DO. Ábrelo desde una cotización aceptada o con «Abrir DO».{% endif %}</div>
+  {% endif %}
+</div>
+{% endblock %}

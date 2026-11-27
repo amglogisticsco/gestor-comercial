@@ -63,8 +63,15 @@
         </form>
         {% endif %}
         {% if c.estado == 'aprobada' %}
-        <a class="btn btn-exito" style="margin-top:12px;width:100%;justify-content:center" href="{{ url_for('anticipos.nuevo', cotizacion_id=c.id) }}">{{ icono('anticipo') }} Crear solicitud de fondos</a>
+        {% if not c.operaciones %}
+        <form method="post" action="{{ url_for('operaciones.desde_cotizacion', ident=c.id) }}" style="margin-top:12px">{{ csrf() }}
+          <button class="btn btn-exito" type="submit" style="width:100%;justify-content:center" data-confirmar="¿Abrir el DO de esta operación? Se asigna el siguiente consecutivo.">{{ icono('carpeta') }} Abrir DO</button></form>
         {% endif %}
+        <a class="btn {{ 'btn-exito' if c.operaciones else '' }}" style="margin-top:8px;width:100%;justify-content:center" href="{{ url_for('anticipos.nuevo', cotizacion_id=c.id, do_id=c.operaciones[0].id if c.operaciones else None) }}">{{ icono('anticipo') }} Crear solicitud de fondos</a>
+        {% endif %}
+        {% for o in c.operaciones %}
+        <a class="do-vinculo" href="{{ url_for('operaciones.ver', ident=o.id) }}">{{ icono('carpeta') }} <strong>{{ o.numero }}</strong> {{ badge(o.estado, ESTADOS) }}</a>
+        {% endfor %}
       </div>
     </div>
 

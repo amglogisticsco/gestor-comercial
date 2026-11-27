@@ -140,8 +140,10 @@ def cambiar_estado(ident):
         cot.estado = estado
         db.session.commit()
         flash(f"Estado actualizado a «{ESTADOS_COTIZACION[estado]}».", "ok")
-        if estado == "aprobada" and not cot.anticipos:
-            flash("Cotización aprobada. ¿Quieres generar la solicitud de anticipo?", "sugerencia")
+        if estado == "aprobada" and not cot.operaciones:
+            flash("Cotización aceptada. El siguiente paso es «Abrir DO» (panel de la derecha).", "sugerencia")
+        elif estado == "aprobada" and not cot.anticipos:
+            flash("Cotización aceptada. ¿Quieres generar la solicitud de fondos?", "sugerencia")
     return redirect(url_for("cotizaciones.ver", ident=cot.id))
 
 

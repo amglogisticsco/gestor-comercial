@@ -30,6 +30,18 @@
       {% else %}<div class="vacio">Sin cotizaciones.</div>{% endif %}
     </div>
     <div class="tarjeta">
+      <div class="tarjeta-cab"><h2>DO</h2><a class="small" href="{{ url_for('operaciones.nuevo', cliente_id=cliente.id) }}">Abrir DO</a></div>
+      {% if cliente.operaciones %}
+      <div class="tabla-envoltura"><table class="tabla">
+        <thead><tr><th>DO</th><th>Operación</th><th>BL / guía</th><th>Apertura</th><th>Estado</th></tr></thead>
+        <tbody>{% for o in cliente.operaciones %}
+          <tr><td><a class="principal-celda" href="{{ url_for('operaciones.ver', ident=o.id) }}">{{ o.numero }}</a></td>
+          <td class="small">{{ o.tipo_operacion }}{% if o.ruta %} · {{ o.ruta }}{% endif %}</td><td class="small">{{ o.doc_transporte or '—' }}</td>
+          <td class="small">{{ o.fecha_apertura|fecha }}</td><td>{{ badge(o.estado, ESTADOS) }}</td></tr>
+        {% endfor %}</tbody></table></div>
+      {% else %}<div class="vacio">Sin DO.</div>{% endif %}
+    </div>
+    <div class="tarjeta">
       <div class="tarjeta-cab"><h2>Solicitudes de fondos</h2><a class="small" href="{{ url_for('anticipos.nuevo', cliente_id=cliente.id) }}">Nueva solicitud</a></div>
       {% if cliente.anticipos %}
       <div class="tabla-envoltura"><table class="tabla">

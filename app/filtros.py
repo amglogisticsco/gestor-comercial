@@ -71,7 +71,7 @@ def registrar(app):
         moneda=moneda, numero=numero, crudo=crudo, tamano=tamano, fecha=fecha, fecha_larga=fecha_larga,
         dia_mes=dia_mes, fecha_hora=fecha_hora, parrafos=parrafos,
     )
-    from .models import ESTADOS_ANTICIPO, ESTADOS_COTIZACION
+    from .models import ESTADOS_ANTICIPO, ESTADOS_COTIZACION, ESTADOS_DO
 
-    estados = {**ESTADOS_COTIZACION, **ESTADOS_ANTICIPO, "enviado": "Enviado", "error": "Error"}
+    estados = {**ESTADOS_COTIZACION, **ESTADOS_ANTICIPO, **ESTADOS_DO, "enviado": "Enviado", "error": "Error"}
     app.jinja_env.globals.update(hoy=date.today, ahora=datetime.now, ESTADOS=estados)

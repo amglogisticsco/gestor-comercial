@@ -1,3 +1,4 @@
+import re
 import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -18,6 +19,7 @@ ESTADOS_COTIZACION = {
     "reemplazada": "Reemplazada",
 }
 ROLES = {"admin": "Administrador", "usuario": "Usuario"}
+ESTADOS_DO = {"abierto": "Abierto", "en_proceso": "En proceso", "cerrado": "Cerrado", "anulado": "Anulado"}
 ESTADOS_ANTICIPO = {"pendiente": "Pendiente", "enviada": "Enviada", "pagada": "Pagada", "anulada": "Anulada"}
 TIPOS_OPERACION = ["Importación", "Exportación", "Zona Franca", "OTM", "DTA", "Proceso de aduana", "Etiquetado", "Nacional"]
 MODALIDADES = ["Marítimo", "Aéreo", "Terrestre", "Multimodal"]
@@ -87,7 +89,9 @@ class Empresa(db.Model):
     cumple_auto_envio = db.Column(db.Boolean, default=False)
     cumple_asunto = db.Column(db.String(200), default="")
     cumple_mensaje = db.Column(db.Text, default="")
-    cot_siguiente = db.Column(db.Integer, default=1)  # para continuar la numeración del Excel
+    cot_siguiente = db.Column(db.Integer, default=1)
+    do_siguiente = db.Column(db.Integer, default=1)  # para continuar el consecutivo de DO…
+    do_anio = db.Column(db.Integer, nullable=True)  # …solo en el año en que se configuró  # para continuar la numeración del Excel
     catalogo_version = db.Column(db.Integer, default=0)  # el catálogo inicial se carga una sola vez
 
     @staticmethod
@@ -122,6 +126,7 @@ class Cliente(db.Model):
 
     cotizaciones = db.relationship("Cotizacion", back_populates="cliente", order_by="desc(Cotizacion.id)")
     anticipos = db.relationship("Anticipo", back_populates="cliente", order_by="desc(Anticipo.id)")
+    operaciones = db.relationship("Operacion", back_populates="cliente", order_by="desc(Operacion.id)")
     correos = db.relationship("Correo", back_populates="cliente", order_by="desc(Correo.id)")
 
     @property
@@ -409,6 +414,7 @@ class Cotizacion(db.Model):
         "ItemCotizacion", back_populates="cotizacion", cascade="all, delete-orphan", order_by="ItemCotizacion.orden"
     )
     anticipos = db.relationship("Anticipo", back_populates="cotizacion")
+    operaciones = db.relationship("Operacion", back_populates="cotizacion", order_by="Operacion.id")
 
     @property
     def subtotal(self):
@@ -541,6 +547,7 @@ class Anticipo(db.Model):
     tipo_operacion = db.Column(db.String(30), default="Importación")
     modalidad = db.Column(db.String(30), default="")
     do_numero = db.Column(db.String(40), default="")
+    do_id = db.Column(db.Integer, db.ForeignKey("operacion.id"), nullable=True)
     aduana = db.Column(db.String(80), default="")
     origen = db.Column(db.String(120), default="")
     destino = db.Column(db.String(120), default="")
@@ -565,6 +572,7 @@ class Anticipo(db.Model):
 
     cliente = db.relationship("Cliente", back_populates="anticipos")
     cotizacion = db.relationship("Cotizacion", back_populates="anticipos")
+    do = db.relationship("Operacion", back_populates="anticipos")
     items = db.relationship(
         "ItemAnticipo", back_populates="anticipo", cascade="all, delete-orphan", order_by="ItemAnticipo.orden"
     )
@@ -630,6 +638,50 @@ class ItemAnticipo(db.Model):
     valor = db.Column(db.Float, default=0)
 
     anticipo = db.relationship("Anticipo", back_populates="items")
+
+
+class Operacion(db.Model):
+    """DO: documento de operación con consecutivo DO-AAAA-0001. Identifica la carpeta del proceso."""
+    id = db.Column(db.Integer, primary_key=True)
+    numero = db.Column(db.String(30), unique=True, nullable=False)
+    cliente_id = db.Column(db.Integer, db.ForeignKey("cliente.id"), nullable=False)
+    cotizacion_id = db.Column(db.Integer, db.ForeignKey("cotizacion.id"), nullable=True)
+    fecha_apertura = db.Column(db.Date, default=date.today)
+    tipo_operacion = db.Column(db.String(30), default="Importación")
+    modalidad = db.Column(db.String(30), default="")
+    origen = db.Column(db.String(120), default="")
+    destino = db.Column(db.String(120), default="")
+    mercancia = db.Column(db.String(200), default="")
+    transportista = db.Column(db.String(120), default="")  # naviera / aerolínea / transportador
+    doc_transporte = db.Column(db.String(80), default="")  # BL / guía aérea / remesa
+    contenedores = db.Column(db.String(200), default="")
+    referencia_cliente = db.Column(db.String(80), default="")  # pedido / orden de compra del cliente
+    eta = db.Column(db.Date, nullable=True)
+    responsable = db.Column(db.String(120), default="")
+    estado = db.Column(db.String(20), default="abierto")
+    fecha_cierre = db.Column(db.Date, nullable=True)
+    notas = db.Column(db.Text, default="")
+    creado = db.Column(db.DateTime, default=datetime.now)
+
+    cliente = db.relationship("Cliente", back_populates="operaciones")
+    cotizacion = db.relationship("Cotizacion", back_populates="operaciones")
+    anticipos = db.relationship("Anticipo", back_populates="do", order_by="desc(Anticipo.id)")
+
+    @property
+    def carpeta(self):
+        """Nombre sugerido para la carpeta del proceso."""
+        nombre = re.sub(r'[\\/:*?"<>|]+', " ", self.cliente.razon_social if self.cliente else "").strip()
+        return f"{self.numero} - {nombre}"
+
+    @property
+    def ruta(self):
+        return f"{self.origen} → {self.destino}" if self.origen and self.destino else (self.origen or self.destino or "")
+
+
+def numero_do():
+    empresa = Empresa.actual()
+    minimo = (empresa.do_siguiente or 1) if empresa.do_anio == date.today().year else 1
+    return siguiente_numero(Operacion, "DO", minimo=minimo)
 
 
 class Correo(db.Model):

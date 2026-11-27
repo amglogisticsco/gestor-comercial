@@ -23,7 +23,11 @@
         </select><div class="ayuda">Si eliges una cotización, se usa su cliente.</div></div>
       <div class="c-3"><label>Tipo</label><select name="tipo_operacion">{% for t in tipos %}<option {{ 'selected' if t == a.tipo_operacion }}>{{ t }}</option>{% endfor %}</select></div>
       <div class="c-3"><label>Modalidad</label><select name="modalidad"><option value=""></option>{% for m in modalidades %}<option {{ 'selected' if m == a.modalidad }}>{{ m }}</option>{% endfor %}</select></div>
-      <div class="c-2"><label>D.O.</label><input type="text" name="do_numero" value="{{ a.do_numero or '' }}"></div>
+      <div class="c-2"><label>DO</label>
+        <select name="do_id" id="do-sel"><option value="">Sin DO</option>
+          {% for o in operaciones %}<option value="{{ o.id }}" {{ 'selected' if o.id == a.do_id }}>{{ o.numero }} · {{ o.cliente.razon_social }}</option>{% endfor %}
+        </select>
+        {% if a.do_numero and not a.do_id %}<input type="text" name="do_numero" value="{{ a.do_numero }}" style="margin-top:6px" title="Número escrito a mano antes del módulo de DO">{% endif %}</div>
       <div class="c-2"><label>Fecha</label><input type="date" name="fecha" value="{{ a.fecha.isoformat() if a.fecha }}"></div>
       <div class="c-2"><label>Fecha límite</label><input type="date" name="fecha_limite" value="{{ a.fecha_limite.isoformat() if a.fecha_limite }}"></div>
       <div class="c-3"><label>Aduana en</label><input type="text" name="aduana" value="{{ a.aduana or '' }}" placeholder="Cartagena"></div>

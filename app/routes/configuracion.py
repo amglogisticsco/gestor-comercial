@@ -30,6 +30,11 @@ def empresa():
             setattr(emp, campo, color if color.startswith("#") and len(color) in (4, 7) else defecto)
         emp.cumple_auto_envio = request.form.get("cumple_auto_envio") == "1"
         emp.cot_siguiente = max(1, request.form.get("cot_siguiente", type=int) or 1)
+        do_siguiente = max(1, request.form.get("do_siguiente", type=int) or 1)
+        if do_siguiente != (emp.do_siguiente or 1) or emp.do_anio is None:
+            from datetime import date
+
+            emp.do_siguiente, emp.do_anio = do_siguiente, date.today().year
 
         logo = request.files.get("logo")
         if logo and logo.filename:

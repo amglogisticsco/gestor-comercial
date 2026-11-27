@@ -517,3 +517,42 @@ def test_actualizar_tarifa_con_historial(cliente_http):
     assert "Historial de cambios" in c.get(f"/tarifas/{tid}").get_data(as_text=True)
     assert "Actualizar" in c.get("/tarifas/").get_data(as_text=True)
 
+
+
+def test_do_consecutivo_y_carpeta(cliente_http):
+    """Abrir DO desde una cotización aceptada, consecutivo por año, carpeta y solicitud de fondos ligada."""
+    from app.models import Empresa, Operacion
+
+    c = cliente_http
+    post(c, "/setup", {"empresa": "AMG", "nombre": "David", "email": "admin@amg.test", "clave": "clave-segura"})
+    with c.app.app_context():
+        cli = Cliente(razon_social="Liurisa Investment Limited", pais="Trinidad y Tobago", email="f@x.test")
+        db.session.add(cli)
+        db.session.commit()
+        cot = Cotizacion(numero="COT-0900", cliente_id=cli.id, fecha=date.today(), estado="aprobada",
+                         tipo_operacion="Exportación", modalidad="Marítimo", origen="Bogotá", destino="Trinidad",
+                         mercancia="Café", moneda="USD")
+        db.session.add(cot)
+        db.session.commit()
+        cot_id = cot.id
+    anio = date.today().year
+    r = post(c, f"/do/desde-cotizacion/{cot_id}", {}, desde=f"/cotizaciones/{cot_id}")
+    html = r.get_data(as_text=True)
+    assert f"DO-{anio}-0001 - Liurisa Investment Limited" in html
+    # Continuar desde el consecutivo propio
+    with c.app.app_context():
+        emp = Empresa.actual()
+        emp.do_siguiente, emp.do_anio = 25, anio
+        db.session.commit()
+    r = post(c, "/do/nuevo", {"cliente_id": "", "cotizacion_id": str(cot_id), "tipo_operacion": "Importación",
+                              "doc_transporte": "BGA0557109"})
+    assert f"DO-{anio}-0025" in r.get_data(as_text=True)
+    with c.app.app_context():
+        do = Operacion.query.filter_by(numero=f"DO-{anio}-0001").one()
+        do_id = do.id
+        assert do.mercancia == "Café" and do.cotizacion_id == cot_id
+    # La solicitud de fondos toma el DO
+    html = c.get(f"/anticipos/nuevo?do_id={do_id}").get_data(as_text=True)
+    assert f'value="{do_id}" selected' in html
+    for url in ["/do/", f"/do/{do_id}", f"/do/{do_id}/editar", "/do/?q=liurisa", f"/cotizaciones/{cot_id}"]:
+        assert c.get(url).status_code == 200, url

@@ -5,14 +5,14 @@ from flask_login import current_user
 
 from .. import db
 from ..models import (ESTADOS_ANTICIPO, GRUPOS_ANTICIPO, MODALIDADES, TIPOS_OPERACION, Anticipo, Cliente,
-                      Cotizacion, ItemAnticipo, Servicio, siguiente_numero)
+                      Cotizacion, ItemAnticipo, Operacion, Servicio, siguiente_numero)
 from ..services import correo as servicio_correo
 from ..services import pdf
 from . import a_fecha, a_numero, obtener
 
 bp = Blueprint("anticipos", __name__, url_prefix="/anticipos")
 
-CAMPOS_TEXTO = ["tipo_operacion", "modalidad", "do_numero", "aduana", "origen", "destino", "tipo_mercancia",
+CAMPOS_TEXTO = ["tipo_operacion", "modalidad", "aduana", "origen", "destino", "tipo_mercancia",
                 "doc_transporte", "partida_arancelaria", "concepto", "notas"]
 CAMPOS_NUMERO = ["trm", "fob", "flete", "seguro", "otros_cif", "arancel_pct", "iva_tributo_pct"]
 
@@ -33,14 +33,24 @@ def _contexto(a):
         "clientes": Cliente.query.filter_by(activo=True).order_by(Cliente.razon_social).all(),
         "cotizaciones": Cotizacion.query.filter(Cotizacion.estado != "rechazada").order_by(Cotizacion.id.desc()).all(),
         "servicios": Servicio.query.filter_by(activo=True).order_by(Servicio.grupo, Servicio.nombre).all(),
+        "operaciones": Operacion.query.filter((Operacion.estado.notin_(["cerrado", "anulado"]))
+                                             | (Operacion.id == (a.do_id or 0))).order_by(Operacion.id.desc()).all(),
     }
 
 
 def _guardar(a):
     cotizacion_id = request.form.get("cotizacion_id", type=int)
     cot = db.session.get(Cotizacion, cotizacion_id) if cotizacion_id else None
+    do = db.session.get(Operacion, request.form.get("do_id", type=int) or 0)
+    a.do_id = do.id if do else None
+    if do:
+        a.do_numero = do.numero
+    elif "do_numero" in request.form:  # número escrito a mano (solicitudes anteriores al módulo de DO)
+        a.do_numero = request.form.get("do_numero", "").strip()
+    else:
+        a.do_numero = ""
     a.cotizacion_id = cot.id if cot else None
-    a.cliente_id = cot.cliente_id if cot else request.form.get("cliente_id", type=int)
+    a.cliente_id = cot.cliente_id if cot else (do.cliente_id if do else request.form.get("cliente_id", type=int))
     if not a.cliente_id or not db.session.get(Cliente, a.cliente_id):
         flash("Selecciona un cliente o una cotización.", "error")
         return False
@@ -87,11 +97,21 @@ def nuevo():
     a = Anticipo(fecha=date.today(), fecha_limite=date.today() + timedelta(days=3), moneda="COP",
                  tipo_operacion="Importación", iva_tributo_pct=19, arancel_pct=0,
                  cliente_id=request.args.get("cliente_id", type=int))
-    cot = db.session.get(Cotizacion, request.args.get("cotizacion_id", type=int) or 0)
+    do = db.session.get(Operacion, request.args.get("do_id", type=int) or 0)
+    cot = db.session.get(Cotizacion, request.args.get("cotizacion_id", type=int) or 0) or (do.cotizacion if do else None)
     aviso_usd = False
     if cot and request.method == "GET":
         _desde_cotizacion(a, cot)
         aviso_usd = cot.moneda != "COP"
+    if do and request.method == "GET":
+        a.do_id, a.do_numero, a.cliente_id = do.id, do.numero, do.cliente_id
+        a.tipo_operacion = do.tipo_operacion or a.tipo_operacion
+        a.modalidad = do.modalidad or a.modalidad
+        a.origen, a.destino = do.origen or a.origen, do.destino or a.destino
+        a.tipo_mercancia = do.mercancia or a.tipo_mercancia
+        a.doc_transporte = do.doc_transporte
+    elif cot and request.method == "GET" and cot.operaciones:
+        a.do_id, a.do_numero = cot.operaciones[0].id, cot.operaciones[0].numero
     if request.method == "POST":
         if _guardar(a):
             a.numero = siguiente_numero(Anticipo, "SF")

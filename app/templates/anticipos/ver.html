@@ -6,7 +6,7 @@
   <div>
     <div class="migas"><a href="{{ url_for('anticipos.lista') }}">Solicitudes de fondos</a></div>
     <h1>{{ a.numero }} &nbsp;{{ badge(a.estado, ESTADOS) }}</h1>
-    <p><a href="{{ url_for('clientes.ver', ident=a.cliente.id) }}">{{ a.cliente.razon_social }}</a>{% if a.do_numero %} · D.O. {{ a.do_numero }}{% endif %}{% if a.cotizacion %} · <a href="{{ url_for('cotizaciones.ver', ident=a.cotizacion.id) }}">{{ a.cotizacion.numero }}</a>{% endif %}</p>
+    <p><a href="{{ url_for('clientes.ver', ident=a.cliente.id) }}">{{ a.cliente.razon_social }}</a>{% if a.do %} · <a href="{{ url_for('operaciones.ver', ident=a.do.id) }}">{{ a.do.numero }}</a>{% elif a.do_numero %} · D.O. {{ a.do_numero }}{% endif %}{% if a.cotizacion %} · <a href="{{ url_for('cotizaciones.ver', ident=a.cotizacion.id) }}">{{ a.cotizacion.numero }}</a>{% endif %}</p>
   </div>
   <div class="acciones">
     <a class="btn" href="{{ url_for('anticipos.ver_pdf', ident=a.id) }}" target="_blank">{{ icono('pdf') }} Ver PDF</a>

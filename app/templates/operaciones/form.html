@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icono, csrf with context %}
+{% block titulo %}{{ 'Editar ' ~ do.numero if do.id else 'Abrir DO' }}{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div>
+  <div class="migas"><a href="{{ url_for('operaciones.lista') }}">DO</a>{% if do.id %} / <a href="{{ url_for('operaciones.ver', ident=do.id) }}">{{ do.numero }}</a>{% endif %}</div>
+  <h1>{{ 'Editar ' ~ do.numero if do.id else 'Abrir DO' }}</h1>
+  {% if not do.id %}<p>El número se asigna al guardar (consecutivo DO-{{ hoy().year }}-…).</p>{% endif %}
+</div></div>
+<form method="post" class="tarjeta" style="max-width:980px">
+  {{ csrf() }}
+  <div class="seccion-form"><h3>Cliente</h3><div class="form-grid">
+    <div class="c-6"><label>Cotización <span class="opc">(opcional)</span></label>
+      <select name="cotizacion_id" id="cotizacion"><option value="">Sin cotización</option>
+        {% for c in cotizaciones %}<option value="{{ c.id }}" {{ 'selected' if c.id == do.cotizacion_id }}>{{ c.numero }} · {{ c.cliente.razon_social }}{% if c.estado == 'aprobada' %} · aceptada{% endif %}</option>{% endfor %}
+      </select>{% if not do.id %}<div class="ayuda">Para traer los datos, ábrelo desde la cotización con «Abrir DO».</div>{% endif %}</div>
+    <div class="c-6" id="bloque-cliente"><label>Cliente</label>
+      <select name="cliente_id"><option value="">Selecciona…</option>
+        {% for cl in clientes %}<option value="{{ cl.id }}" {{ 'selected' if cl.id == do.cliente_id }}>{{ cl.razon_social }}</option>{% endfor %}
+      </select><div class="ayuda">Si eliges una cotización, se usa su cliente.</div></div>
+    <div class="c-4"><label>Referencia del cliente <span class="opc">(pedido / OC)</span></label><input type="text" name="referencia_cliente" value="{{ do.referencia_cliente or '' }}"></div>
+    <div class="c-4"><label>Fecha de apertura</label><input type="date" name="fecha_apertura" value="{{ do.fecha_apertura.isoformat() if do.fecha_apertura }}"></div>
+    <div class="c-4"><label>Responsable</label><input type="text" name="responsable" value="{{ do.responsable or '' }}"></div>
+  </div></div>
+  <div class="seccion-form"><h3>Operación</h3><div class="form-grid">
+    <div class="c-3"><label>Tipo</label><select name="tipo_operacion">{% for t in tipos %}<option {{ 'selected' if t == do.tipo_operacion }}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="c-3"><label>Modalidad</label><select name="modalidad"><option value=""></option>{% for m in modalidades %}<option {{ 'selected' if m == do.modalidad }}>{{ m }}</option>{% endfor %}</select></div>
+    <div class="c-3"><label>Origen</label><input type="text" name="origen" value="{{ do.origen or '' }}"></div>
+    <div class="c-3"><label>Destino</label><input type="text" name="destino" value="{{ do.destino or '' }}"></div>
+    <div class="c-6"><label>Mercancía</label><input type="text" name="mercancia" value="{{ do.mercancia or '' }}"></div>
+    <div class="c-6"><label>Naviera / aerolínea / transportador</label><input type="text" name="transportista" value="{{ do.transportista or '' }}"></div>
+    <div class="c-4"><label>BL / guía aérea</label><input type="text" name="doc_transporte" value="{{ do.doc_transporte or '' }}"></div>
+    <div class="c-5"><label>Contenedores <span class="opc">(números o tipo)</span></label><input type="text" name="contenedores" value="{{ do.contenedores or '' }}" placeholder="MSCU1234567, 40' HC"></div>
+    <div class="c-3"><label>ETA</label><input type="date" name="eta" value="{{ do.eta.isoformat() if do.eta }}"></div>
+    <div class="c-12"><label>Notas</label><textarea name="notas" rows="3">{{ do.notas or '' }}</textarea></div>
+  </div></div>
+  <div class="pie-form"><a class="btn" href="{{ url_for('operaciones.ver', ident=do.id) if do.id else url_for('operaciones.lista') }}">Cancelar</a>
+    <button class="btn btn-primario" type="submit">{{ 'Guardar cambios' if do.id else 'Abrir DO' }}</button></div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+const cot = document.getElementById('cotizacion'), bc = document.getElementById('bloque-cliente');
+const tc = () => { bc.style.opacity = cot.value ? .5 : 1; bc.querySelector('select').disabled = !!cot.value; };
+cot.addEventListener('change', tc); tc();
+</script>
+{% endblock %}

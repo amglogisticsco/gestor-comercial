@@ -1,6 +1,6 @@
 """Eliminación definitiva (solo administradores) de registros con historial."""
 from .. import db
-from ..models import Anticipo, Cliente, Correo, Cotizacion, ItemCotizacion, Proveedor, Tarifa
+from ..models import Anticipo, Cliente, Correo, Cotizacion, ItemCotizacion, Operacion, Proveedor, Tarifa
 
 
 def _correos_de(tipo, ident):
@@ -9,7 +9,7 @@ def _correos_de(tipo, ident):
 
 def resumen_cliente(cliente):
     tarifas = Tarifa.query.filter_by(cliente_id=cliente.id).count()
-    return {"cotizaciones": len(cliente.cotizaciones), "anticipos": len(cliente.anticipos),
+    return {"cotizaciones": len(cliente.cotizaciones), "anticipos": len(cliente.anticipos), "DO": len(cliente.operaciones),
             "correos": len(cliente.correos), "tarifas": tarifas}
 
 
@@ -27,6 +27,7 @@ def eliminar_cotizacion(cot):
     Cotizacion.query.filter_by(revisa_a_id=cot.id).update({"revisa_a_id": None})
     for anticipo in list(cot.anticipos):
         eliminar_anticipo(anticipo)
+    Operacion.query.filter_by(cotizacion_id=cot.id).update({"cotizacion_id": None})  # el DO se conserva
     for correo in _correos_de("cotizacion", cot.id):
         db.session.delete(correo)
     db.session.delete(cot)
@@ -40,6 +41,8 @@ def eliminar_cliente(cliente):
         eliminar_cotizacion(cot)
     for correo in Correo.query.filter_by(cliente_id=cliente.id).all():
         db.session.delete(correo)
+    for do in list(cliente.operaciones):
+        db.session.delete(do)
     for tarifa in Tarifa.query.filter_by(cliente_id=cliente.id).all():
         # Otras cotizaciones que usaron esta tarifa especial conservan sus valores
         ItemCotizacion.query.filter_by(tarifa_id=tarifa.id).update({"tarifa_id": None})

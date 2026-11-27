@@ -6,7 +6,7 @@
   <div class="migas"><a href="{{ url_for('anticipos.lista') }}">Solicitudes de fondos</a>{% if a.id %} / <a href="{{ url_for('anticipos.ver', ident=a.id) }}">{{ a.numero }}</a>{% endif %}</div>
   <h1>{{ 'Editar ' ~ a.numero if a.id else 'Nueva solicitud de fondos' }}</h1>
 </div></div>
-{% if aviso_usd %}<div class="alerta alerta-info">La cotización {{ cot_origen.numero }} está en {{ cot_origen.moneda }}. Se copiaron los conceptos; escribe sus valores en pesos.</div>{% endif %}
+{% if aviso_usd %}<div class="alerta alerta-info">La cotización {{ cot_origen.numero }} está en {{ cot_origen.moneda }}. Escribe la <strong>TRM</strong> y los conceptos se convierten a pesos solos (valor × TRM). Puedes ajustar cualquier valor a mano.</div>{% endif %}
 
 <form method="post" id="form-sf">
   {{ csrf() }}
@@ -102,7 +102,8 @@
 {% block scripts %}
 <script>
 const CATALOGO = { {% for s in servicios %}{{ s.id }}: {{ {"nombre": s.nombre, "grupo": s.grupo, "precio": s.precio}|tojson }},{% endfor %} };
-const EXISTENTES = [ {% for i in a.items %}{{ {"grupo": i.grupo, "descripcion": i.descripcion, "valor": i.valor}|tojson }},{% endfor %} ];
+const EXISTENTES = [ {% for i in a.items %}{{ {"grupo": i.grupo, "descripcion": i.descripcion, "valor": i.valor, "origen": i.valor_origen if i.valor_origen is defined else 0}|tojson }},{% endfor %} ];
+const MONEDA_ORIGEN = {{ (cot_origen.moneda if aviso_usd else '')|tojson }};
 const cuerpo = document.getElementById('items');
 const $ = n => document.querySelector('[name=' + n + ']');
 function aNumero(v) {
@@ -135,6 +136,14 @@ function agregarFila(d) {
     tr.querySelector('[name=item_grupo]').value = d.grupo;
     tr.querySelector('[name=item_descripcion]').value = d.descripcion || '';
     tr.querySelector('[name=item_valor]').value = d.valor ? Math.round(d.valor) : 0;
+    if (d.origen) {  // valor en USD de la cotización: se convierte con la TRM
+      const v = tr.querySelector('[name=item_valor]');
+      v.dataset.origen = d.origen;
+      v.addEventListener('input', () => v.dataset.manual = '1');
+      const nota = document.createElement('div'); nota.className = 'small muted';
+      nota.textContent = (MONEDA_ORIGEN === 'USD' ? 'US$ ' : MONEDA_ORIGEN + ' ') + d.origen.toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' × TRM';
+      v.after(nota);
+    }
   }
   tr.querySelector('.quitar').onclick = () => { tr.remove(); recalcular(); };
   tr.querySelectorAll('input').forEach(el => el.addEventListener('input', recalcular));
@@ -146,9 +155,18 @@ document.getElementById('agregar-servicio').addEventListener('change', e => {
   agregarFila({grupo: s.grupo, descripcion: s.nombre, valor: s.precio}); e.target.value = '';
 });
 document.querySelectorAll('.trib, #trm').forEach(el => el.addEventListener('input', recalcular));
+function convertir() {
+  const trm = aNumero($('trm').value);
+  cuerpo.querySelectorAll('[name=item_valor][data-origen]').forEach(v => {
+    if (!v.dataset.manual) v.value = trm ? Math.round(parseFloat(v.dataset.origen) * trm) : 0;
+  });
+  recalcular();
+}
+$('trm').addEventListener('input', convertir);
 const sel = document.getElementById('cotizacion');
 const atenuar = () => document.getElementById('bloque-cliente').style.opacity = sel.value ? .5 : 1;
 sel.addEventListener('change', atenuar); atenuar();
 EXISTENTES.length ? EXISTENTES.forEach(agregarFila) : recalcular();
+if (aNumero($('trm').value)) convertir();
 </script>
 {% endblock %}

@@ -85,11 +85,13 @@ def _desde_cotizacion(a, cot):
     a.tipo_mercancia = cot.mercancia
     a.concepto = f"Solicitud de fondos – cotización {cot.numero}"
     grupos = {s.id: s.grupo for s in Servicio.query.all()}
-    a.items = [
-        ItemAnticipo(orden=n, grupo=grupos.get(i.servicio_id, GRUPOS_ANTICIPO[-1]), descripcion=i.descripcion,
-                     valor=i.total + i.impuesto(cot.iva_pct) if cot.moneda == "COP" else 0)
-        for n, i in enumerate(cot.items)
-    ]
+    a.items = []
+    for n, i in enumerate(cot.items):
+        valor = i.total + i.impuesto(cot.iva_pct)
+        item = ItemAnticipo(orden=n, grupo=grupos.get(i.servicio_id, GRUPOS_ANTICIPO[-1]), descripcion=i.descripcion,
+                            valor=valor if cot.moneda == "COP" else 0)
+        item.valor_origen = valor if cot.moneda != "COP" else 0  # se convierte a pesos con la TRM en pantalla
+        a.items.append(item)
 
 
 @bp.route("/nuevo", methods=["GET", "POST"])

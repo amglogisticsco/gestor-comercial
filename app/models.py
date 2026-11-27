@@ -687,9 +687,11 @@ class Operacion(db.Model):
 
 
 def numero_do():
-    empresa = Empresa.actual()
-    minimo = (empresa.do_siguiente or 1) if empresa.do_anio == date.today().year else 1
-    return siguiente_numero(Operacion, "DO", minimo=minimo)
+    """DO-AAAA-NNNN: el año cambia, pero el consecutivo sigue (DO-2026-0045 → DO-2027-0046)."""
+    numeros = [int(m.group(1)) for (valor,) in db.session.query(Operacion.numero)
+               if valor and (m := re.match(r"^DO-\d{4}-(\d+)$", valor))]
+    consecutivo = max([(Empresa.actual().do_siguiente or 1) - 1, *numeros]) + 1
+    return f"DO-{date.today().year}-{consecutivo:04d}"
 
 
 class Correo(db.Model):

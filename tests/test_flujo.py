@@ -556,3 +556,16 @@ def test_do_consecutivo_y_carpeta(cliente_http):
     assert f'value="{do_id}" selected' in html
     for url in ["/do/", f"/do/{do_id}", f"/do/{do_id}/editar", "/do/?q=liurisa", f"/cotizaciones/{cot_id}"]:
         assert c.get(url).status_code == 200, url
+
+
+def test_do_sigue_consecutivo_entre_anios(cliente_http):
+    from app.models import Operacion, numero_do
+
+    c = cliente_http
+    with c.app.app_context():
+        cli = Cliente(razon_social="X")
+        db.session.add(cli)
+        db.session.commit()
+        db.session.add(Operacion(numero=f"DO-{date.today().year - 1}-0045", cliente_id=cli.id))
+        db.session.commit()
+        assert numero_do() == f"DO-{date.today().year}-0046"

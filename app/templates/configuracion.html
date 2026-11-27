@@ -29,8 +29,8 @@
       <div class="c-3"><label>Validez (días)</label><input type="number" name="validez_dias" value="{{ e.validez_dias }}" min="1"></div>
       <div class="c-3"><label>Cotización desde N.º</label><input type="number" name="cot_siguiente" value="{{ e.cot_siguiente or 1 }}" min="1">
         <div class="ayuda">Para continuar tu numeración (ej.: 5 → COT-0005).</div></div>
-      <div class="c-3"><label>DO de {{ hoy().year }} desde N.º</label><input type="number" name="do_siguiente" value="{{ e.do_siguiente if e.do_anio == hoy().year else 1 }}" min="1">
-        <div class="ayuda">Ej.: 12 → DO-{{ hoy().year }}-0012. Cada año arranca en 1.</div></div>
+      <div class="c-3"><label>DO desde N.º</label><input type="number" name="do_siguiente" value="{{ e.do_siguiente or 1 }}" min="1">
+        <div class="ayuda">Ej.: 12 → DO-{{ hoy().year }}-0012. El consecutivo sigue al cambiar de año.</div></div>
       <input type="hidden" name="anticipo_pct" value="{{ e.anticipo_pct|numero }}">
       <div class="c-12"><label>Nota de tarifas</label><textarea name="nota_tarifas" rows="2">{{ e.nota_tarifas }}</textarea></div>
       <div class="c-12"><label>Condiciones y observaciones <span class="opc">(una por línea)</span></label><textarea name="condiciones" rows="8">{{ e.condiciones }}</textarea></div>
